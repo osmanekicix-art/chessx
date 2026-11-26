@@ -1,53 +1,61 @@
-// Service worker — settings storage + Stockfish engine relay via long-lived ports
+// Background service worker — settings storage + engine relay via offscreen document.
 //
-// Stockfish runs as a sub-worker here (extension context) so chess.com's CSP never
-// applies. Content scripts connect via chrome.runtime.connect('chessx') and send/
-// receive raw UCI strings over the port.
+// MV3 service workers cannot create Workers directly. The Stockfish Worker
+// lives in offscreen.html (Chrome 109+ Offscreen Document API) which uses
+// the extension's own CSP, allowing wasm-unsafe-eval.
+//
+// Routing: content script ←port('chessx')→ background SW ←port('offscreen')→ offscreen doc → Worker
 
-let sfWorker = null;
-const ports  = [];
+let offscreenPort = null;
+const contentPorts = [];
 
-function ensureEngine() {
-  if (sfWorker) return;
-  sfWorker = new Worker(chrome.runtime.getURL('stockfish.js'));
-  sfWorker.onmessage = (e) => {
-    for (let i = ports.length - 1; i >= 0; i--) {
-      try { ports[i].postMessage(e.data); }
-      catch (_) { ports.splice(i, 1); }
-    }
-  };
-  sfWorker.onerror = (e) => console.error('[ChessX bg] engine error:', e.message);
-  sfWorker.postMessage('uci');
-  sfWorker.postMessage('setoption name Hash value 32');
-  sfWorker.postMessage('isready');
+async function ensureOffscreen() {
+  const existing = await chrome.runtime.getContexts({ contextTypes: ['OFFSCREEN_DOCUMENT'] });
+  if (existing.length > 0) return;
+  await chrome.offscreen.createDocument({
+    url: chrome.runtime.getURL('offscreen.html'),
+    reasons: ['WORKERS'],
+    justification: 'Runs Stockfish chess engine as a web worker'
+  });
 }
 
 chrome.runtime.onConnect.addListener((port) => {
-  if (port.name !== 'chessx') return;
-  ports.push(port);
-  ensureEngine();
+  if (port.name === 'chessx') {
+    contentPorts.push(port);
+    ensureOffscreen().catch((e) => console.error('[ChessX bg] offscreen create failed:', e));
 
-  port.onMessage.addListener((cmd) => {
-    if (sfWorker) sfWorker.postMessage(cmd);
-  });
+    port.onMessage.addListener((cmd) => {
+      if (offscreenPort) offscreenPort.postMessage(cmd);
+    });
 
-  port.onDisconnect.addListener(() => {
-    const i = ports.indexOf(port);
-    if (i !== -1) ports.splice(i, 1);
-  });
+    port.onDisconnect.addListener(() => {
+      const i = contentPorts.indexOf(port);
+      if (i !== -1) contentPorts.splice(i, 1);
+    });
+    return;
+  }
+
+  if (port.name === 'offscreen') {
+    offscreenPort = port;
+
+    port.onMessage.addListener((line) => {
+      for (let i = contentPorts.length - 1; i >= 0; i--) {
+        try { contentPorts[i].postMessage(line); }
+        catch (_) { contentPorts.splice(i, 1); }
+      }
+    });
+
+    port.onDisconnect.addListener(() => { offscreenPort = null; });
+  }
 });
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.type === 'GET_SETTINGS') {
-    chrome.storage.local.get(['chessx_settings'], (result) => {
-      sendResponse(result.chessx_settings || null);
-    });
+    chrome.storage.local.get(['chessx_settings'], (r) => sendResponse(r.chessx_settings || null));
     return true;
   }
   if (msg.type === 'SET_SETTINGS') {
-    chrome.storage.local.set({ chessx_settings: msg.settings }, () => {
-      sendResponse({ ok: true });
-    });
+    chrome.storage.local.set({ chessx_settings: msg.settings }, () => sendResponse({ ok: true }));
     return true;
   }
 });

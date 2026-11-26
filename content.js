@@ -2513,11 +2513,12 @@ class EngineWrapper {
     this.port = chrome.runtime.connect({ name: 'chessx' });
     this.port.onMessage.addListener((line) => this._handleLine(line));
     this.port.onDisconnect.addListener(() => {
-      console.error('[ChessX] Engine port disconnected — will reconnect on next analyze');
+      console.warn('[ChessX] Engine port disconnected — reconnecting in 500ms');
       this.port         = null;
       this.ready        = false;
       this.isSearching  = false;
       this.phase        = null;
+      setTimeout(() => this.init(), 500);
     });
   }
 

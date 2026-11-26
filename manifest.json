@@ -3,7 +3,7 @@
   "name": "ChessX Analyzer",
   "version": "1.0.0",
   "description": "Stockfish analysis overlay for chess.com",
-  "permissions": ["storage", "scripting"],
+  "permissions": ["storage", "scripting", "offscreen"],
   "host_permissions": ["https://www.chess.com/*"],
   "background": {
     "service_worker": "background.js"
