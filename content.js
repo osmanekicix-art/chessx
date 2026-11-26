@@ -2636,7 +2636,7 @@ class ChessX {
 
     // ── Opening book check ──────────────────────────────────────────────────
     const position = fen.split(' ')[0];
-    if (this.openingPhase && this.moveCount <= 15) {
+    if (this.openingPhase && this.moveCount <= 40) {
       const bookMoveUci = this._checkOpeningBook(position);
       const openingName = OPENING_NAMES[position] || '';
       if (bookMoveUci) {
@@ -2697,7 +2697,7 @@ class ChessX {
     if (this.isBlunder && moves.length > 1) {
       this.eloMove = moves[moves.length - 1];
     } else if (this.settings.mode === 'rage') {
-      this.eloMove = moves[1] || moves[0];
+      this.eloMove = moves[0];
     } else {
       const available = Math.min(moves.length, weights.length);
       const slice = weights.slice(0, available);
@@ -2828,5 +2828,15 @@ setInterval(() => {
   if (location.pathname !== lastPath) {
     lastPath = location.pathname;
     setTimeout(() => waitForBoard(bootstrap), 1000);
+  }
+  // Reset opening phase when a new game starts (rematch without navigation)
+  if (instance && instance.moveCount > 0) {
+    const fen = instance.boardReader.buildFen();
+    const isStartPos = fen && fen.startsWith('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR');
+    if (isStartPos && instance.lastFen && !instance.lastFen.startsWith('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR')) {
+      instance.moveCount   = 0;
+      instance.openingPhase = true;
+      instance.lastFen     = null;
+    }
   }
 }, 1000);
