@@ -2636,7 +2636,7 @@ class ChessX {
 
     // ── Opening book check ──────────────────────────────────────────────────
     const position = fen.split(' ')[0];
-    if (this.openingPhase && this.moveCount <= 40) {
+    if (this.openingPhase && this.moveCount <= 40 && this.settings.mode !== 'rage') {
       const bookMoveUci = this._checkOpeningBook(position);
       const openingName = OPENING_NAMES[position] || '';
       if (bookMoveUci) {
