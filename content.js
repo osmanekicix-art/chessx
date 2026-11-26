@@ -519,6 +519,20 @@ class InfoPanel {
     `;
     document.body.appendChild(panel);
     this.el = panel;
+
+    // Inject pulse keyframe once
+    if (!document.getElementById('chessx-anim')) {
+      const style = document.createElement('style');
+      style.id = 'chessx-anim';
+      style.textContent = `
+        @keyframes chessx-pulse {
+          0%,100% { opacity:1; transform:scale(1); }
+          50%      { opacity:0.75; transform:scale(1.03); }
+        }
+        .chessx-playnow { animation: chessx-pulse 0.75s ease-in-out infinite; }
+      `;
+      document.head.appendChild(style);
+    }
   }
 
   update(data) {
@@ -673,6 +687,9 @@ class ChessX {
 
     this.pollId      = null;
     this.mounted     = false;
+
+    this.playNowTimer = null;
+    this.showPlayNow  = false;
   }
 
   async loadSettings() {
@@ -733,6 +750,10 @@ class ChessX {
     this.lastFen = fen;
     this.moveCount++;
 
+    // Reset play-now state on every new position
+    this.showPlayNow = false;
+    if (this.playNowTimer) { clearTimeout(this.playNowTimer); this.playNowTimer = null; }
+
     // Detect my color
     const detected = this.boardReader.detectMyColor(this.settings.colorOverride);
 
@@ -784,6 +805,12 @@ class ChessX {
     });
 
     this.engine.analyze(fen, this.settings.depth, this.settings.engineElo || 3200);
+
+    // After thinkMs, signal the player it's time to move
+    this.playNowTimer = setTimeout(() => {
+      this.showPlayNow = true;
+      this._renderAll();
+    }, this.thinkMs);
   }
 
   _onEngineResult(moves) {
@@ -842,9 +869,25 @@ class ChessX {
     const elo  = this.eloMove;
     const weak = this.weakMove;
 
+    const playNowBanner = this.showPlayNow ? `
+      <div class="chessx-playnow" style="
+        background:#14532d;
+        border:1px solid #22c55e;
+        border-radius:6px;
+        padding:6px 10px;
+        margin-bottom:8px;
+        text-align:center;
+        font-size:15px;
+        font-weight:800;
+        color:#4ade80;
+        letter-spacing:1.5px;
+      ">▶ ŞİMDİ OYNA</div>
+    ` : '';
+
     this.panel.update({
-      status: weak ? 'ready' : 'weak…',
+      status: this.showPlayNow ? '▶ oyna!' : (weak ? 'ready' : 'weak…'),
       html: `
+        ${playNowBanner}
         Mode: <b>${this.settings.mode}</b> · Color: <b>${this.myColor}</b><br>
         Think: <b>${(this.thinkMs / 1000).toFixed(1)}s</b> · Opp: <b>${this.opponentElo}</b><br>
         <span style="color:#818cf8">●</span> Best: <b>${best ? best.from + '→' + best.to : '…'}</b><br>
@@ -858,6 +901,9 @@ class ChessX {
     // Full clean restart — flush all stale analysis state
     this.engine.stop();
     this.engine.newGame();
+
+    if (this.playNowTimer) { clearTimeout(this.playNowTimer); this.playNowTimer = null; }
+    this.showPlayNow = false;
 
     this.lastFen    = null;
     this.pendingFen = null;
