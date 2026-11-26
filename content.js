@@ -2287,19 +2287,36 @@ class OverlayRenderer {
     this.svg = null;
   }
 
-  render({ bestMove, eloMove, weakMove, isFlipped, isBlunder = false, isBook = false }) {
+  render({ bestMove, eloMove, weakMove, isFlipped, isBlunder = false, isBook = false, mode = 'legit' }) {
     if (!this.svg || !this.boardEl) return;
     while (this.svg.lastChild && this.svg.lastChild.tagName !== 'defs') this.svg.removeChild(this.svg.lastChild);
 
     const rect = this.boardEl.getBoundingClientRect();
     const sq   = rect.width / 8;
 
-    const eloKey = isBook ? 'book' : (isBlunder ? 'blunder' : 'elo');
-    const layers = [
-      { move: weakMove, key: 'weak',   width: 0.09, label: '±' },
-      { move: bestMove, key: 'best',   width: 0.11, label: '1' },
-      { move: eloMove,  key: eloKey,   width: 0.13, label: isBook ? '📖' : (isBlunder ? '!' : '→') },
-    ];
+    // Mode-based arrow selection — never more than 2 arrows at once
+    let layers;
+    if (isBook) {
+      layers = [
+        { move: eloMove, key: 'book', width: 0.13, label: '📖' },
+      ];
+    } else if (mode === 'rage') {
+      layers = [
+        { move: bestMove, key: 'best', width: 0.13, label: '1' },
+      ];
+    } else if (mode === 'manual') {
+      layers = [
+        { move: weakMove, key: 'weak',                          width: 0.09, label: '±' },
+        { move: bestMove, key: 'best',                          width: 0.11, label: '1' },
+        { move: eloMove,  key: isBlunder ? 'blunder' : 'elo',  width: 0.13, label: isBlunder ? '!' : '→' },
+      ];
+    } else {
+      // legit / semi: best (thin) + elo pick (thick)
+      layers = [
+        { move: bestMove, key: 'best',                         width: 0.09, label: '1' },
+        { move: eloMove,  key: isBlunder ? 'blunder' : 'elo', width: 0.13, label: isBlunder ? '!' : '→' },
+      ];
+    }
 
     for (const { move, key, width, label } of layers) {
       if (!move?.from || !move?.to) continue;
@@ -2337,6 +2354,51 @@ class OverlayRenderer {
       txt.textContent = label;
       this.svg.appendChild(txt);
     }
+
+    // ── Legend bar (horizontal, bottom of board) ──────────────────────────
+    const legendItems = isBook
+      ? [{ color: '#06b6d4', label: 'Kitap hamlesi' }]
+      : mode === 'rage'
+        ? [{ color: '#312e81', label: 'En iyi hamle' }]
+        : mode === 'manual'
+          ? [
+              { color: '#312e81', label: 'En iyi' },
+              { color: '#22c55e', label: 'ELO seçimi' },
+              { color: '#f97316', label: '-200 ELO' },
+            ]
+          : [
+              { color: '#312e81', label: 'En iyi' },
+              { color: isBlunder ? '#ef4444' : '#22c55e', label: isBlunder ? 'Blunder!' : 'ELO seçimi' },
+            ];
+
+    const boardPx  = rect.width;
+    const legendY  = boardPx + sq * 0.18;
+    const itemW    = boardPx / legendItems.length;
+
+    const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    bg.setAttribute('x', 0); bg.setAttribute('y', boardPx);
+    bg.setAttribute('width', boardPx); bg.setAttribute('height', sq * 0.30);
+    bg.setAttribute('fill', 'rgba(10,10,16,0.78)');
+    bg.setAttribute('rx', '3');
+    this.svg.appendChild(bg);
+
+    legendItems.forEach(({ color, label }, i) => {
+      const cx = itemW * i + itemW * 0.12;
+      const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      dot.setAttribute('cx', cx); dot.setAttribute('cy', legendY);
+      dot.setAttribute('r', sq * 0.07);
+      dot.setAttribute('fill', color);
+      this.svg.appendChild(dot);
+
+      const lt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      lt.setAttribute('x', cx + sq * 0.11); lt.setAttribute('y', legendY);
+      lt.setAttribute('dominant-baseline', 'central');
+      lt.setAttribute('font-size', sq * 0.13);
+      lt.setAttribute('font-family', 'system-ui, sans-serif');
+      lt.setAttribute('fill', '#cbd5e1');
+      lt.textContent = label;
+      this.svg.appendChild(lt);
+    });
   }
 
   clear() {
@@ -2727,6 +2789,7 @@ class ChessX {
       isFlipped,
       isBlunder: this.isBlunder,
       isBook:    this.isBook,
+      mode:      this.settings.mode,
     });
 
     if (this.showPlayNow && !this.soundPlayed) {
