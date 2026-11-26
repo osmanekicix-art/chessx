@@ -8,7 +8,7 @@ const MODE_DESCS = {
 let settings = {
   mode:          'legit',
   colorOverride: 'auto',
-  depth:         15,
+  depth:         12,
   engineElo:     3200,
   enabled:       true,
   blunderCount:  2,

@@ -2009,7 +2009,7 @@ const TIME_PRESETS = { bullet: 0.3, blitz: 1.0, rapid: 1.8 };
 const DEFAULT_SETTINGS = {
   mode:          'legit',
   colorOverride: 'auto',
-  depth:         15,
+  depth:         12,
   engineElo:     3200,
   enabled:       true,
   blunderCount:  2,       // intentional blunders per game (0–5)
@@ -2489,6 +2489,7 @@ class EngineWrapper {
     this.worker.onmessage = (e) => this._handleLine(e.data);
     this.worker.onerror   = (e) => console.error('[ChessX] Worker error:', e.message);
     this.worker.postMessage('uci');
+    this.worker.postMessage('setoption name Hash value 32');
     this.worker.postMessage('isready');
   }
 
@@ -2524,7 +2525,7 @@ class EngineWrapper {
     }
   }
 
-  analyze(fen, depth = 15, engineElo = 3200) {
+  analyze(fen, depth = 12, engineElo = 3200, thinkMs = 0) {
     if (!this.worker) return;
     this.phase = 'main'; this.currentMoves = [];
     this.worker.postMessage('stop');
@@ -2536,10 +2537,13 @@ class EngineWrapper {
     }
     this.worker.postMessage('setoption name MultiPV value 3');
     this.worker.postMessage(`position fen ${fen}`);
-    this.worker.postMessage(`go depth ${depth}`);
+    // go depth + movetime: stops at whichever comes first.
+    // movetime = thinkMs capped to avoid running past the think window.
+    const moveTimeMs = thinkMs > 0 ? Math.max(800, Math.min(thinkMs - 200, 8000)) : 5000;
+    this.worker.postMessage(`go depth ${depth} movetime ${moveTimeMs}`);
   }
 
-  analyzeWeak(fen, weakElo, depth = 12) {
+  analyzeWeak(fen, weakElo, depth = 10) {
     if (!this.worker) return;
     const elo = Math.max(100, Math.min(3190, weakElo));
     this.phase = 'weak'; this.currentMoves = [];
@@ -2548,7 +2552,7 @@ class EngineWrapper {
     this.worker.postMessage(`setoption name UCI_Elo value ${elo}`);
     this.worker.postMessage('setoption name MultiPV value 1');
     this.worker.postMessage(`position fen ${fen}`);
-    this.worker.postMessage(`go depth ${depth}`);
+    this.worker.postMessage(`go depth ${depth} movetime 3000`);
   }
 
   stop()    { if (this.worker) { this.worker.postMessage('stop'); this.phase = null; } }
@@ -2739,7 +2743,7 @@ class ChessX {
         Think: <b>${(this.thinkMs/1000).toFixed(1)}s</b>
       `
     });
-    this.engine.analyze(fen, this.settings.depth, this.settings.engineElo || 3200);
+    this.engine.analyze(fen, this.settings.depth, this.settings.engineElo || 3200, this.thinkMs);
     this._schedulePlayNow();
   }
 
