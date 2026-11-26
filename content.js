@@ -2443,9 +2443,9 @@ class InfoPanel {
     panel.innerHTML = `
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
         <span style="font-size:13px;font-weight:700;color:#818cf8">ChessX</span>
-        <span id="chessx-status" style="font-size:10px;color:#64748b">initializing…</span>
+        <span id="chessx-status" style="font-size:10px;color:#64748b">başlatılıyor…</span>
       </div>
-      <div id="chessx-info" style="color:#94a3b8">waiting for game…</div>
+      <div id="chessx-info" style="color:#94a3b8">oyun bekleniyor…</div>
       <div style="margin-top:8px;font-size:9px;color:#1e293b;text-align:right">\ gizle/göster</div>
     `;
     document.body.appendChild(panel);
@@ -2713,7 +2713,7 @@ class ChessX {
     const myTurn = (this.myColor === 'white' && turn === 'w') || (this.myColor === 'black' && turn === 'b');
     if (!myTurn) {
       this.overlay.clear();
-      this.panel.update({ status: 'waiting', html: `<b>Opponent's turn</b><br>Color: ${this.myColor || '?'}` });
+      this.panel.update({ status: 'bekleniyor', html: `<b>Rakibin sırası</b><br>Renk: ${this.myColor === 'white' ? 'Beyaz' : this.myColor === 'black' ? 'Siyah' : '?'}` });
       return;
     }
 
@@ -2741,7 +2741,7 @@ class ChessX {
           status: 'book',
           html: `
             ${openingName ? `<span style="color:#67e8f9;font-size:11px">📖 ${openingName}</span><br>` : ''}
-            Mode: <b>${this.settings.mode}</b> · Color: <b>${this.myColor}</b><br>
+            Mod: <b>${this.settings.mode}</b> · Renk: <b>${this.myColor === 'white' ? 'Beyaz' : 'Siyah'}</b><br>
             Think: <b>${(this.thinkMs/1000).toFixed(1)}s</b><br>
             <span style="color:#67e8f9">●</span> Kitap: <b style="color:#67e8f9">${move.from}→${move.to}</b>
           `
@@ -2761,7 +2761,7 @@ class ChessX {
     this.panel.update({
       status: 'analyzing…',
       html: `
-        Mode: <b>${this.settings.mode}</b> · Color: <b>${this.myColor}</b><br>
+        Mod: <b>${this.settings.mode}</b> · Renk: <b>${this.myColor === 'white' ? 'Beyaz' : 'Siyah'}</b><br>
         Opp ELO: <b>${this.opponentElo}</b> · Clock: <b>${clockMs >= 0 ? (clockMs/1000).toFixed(1)+'s' : '?'}</b><br>
         Think: <b>${(this.thinkMs/1000).toFixed(1)}s</b>
       `
@@ -2853,7 +2853,7 @@ class ChessX {
       status: this.showPlayNow ? '▶ oyna!' : (this.isBook ? 'book' : (weak ? 'ready' : 'weak…')),
       html: `
         ${playNowBanner}
-        Mode: <b>${this.settings.mode}</b> · Color: <b>${this.myColor}</b><br>
+        Mod: <b>${this.settings.mode}</b> · Renk: <b>${this.myColor === 'white' ? 'Beyaz' : 'Siyah'}</b><br>
         Think: <b>${(this.thinkMs/1000).toFixed(1)}s</b> · Opp: <b>${this.opponentElo}</b><br>
         ${bookLine}
       `

@@ -1,8 +1,8 @@
 const MODE_DESCS = {
-  legit:  '2–3 intentional errors, weighted moves',
-  semi:   'Balanced — slightly favors best move',
-  rage:   'Always best move, fastest play',
-  manual: 'Show all options, no suggestion',
+  legit:  '2–3 kasıtlı hata, ağırlıklı hamle seçimi',
+  semi:   'Dengeli — hafifçe en iyi hamleyi tercih eder',
+  rage:   'Her zaman en iyi hamle, en hızlı oyun',
+  manual: 'Tüm seçenekleri göster, öneri yok',
 };
 
 let settings = {
@@ -50,7 +50,7 @@ function applyUI() {
   const eloRange = document.getElementById('elo-range');
   const eloVal   = document.getElementById('elo-val');
   eloRange.value = settings.engineElo;
-  eloVal.textContent = settings.engineElo >= 3200 ? 'Full' : settings.engineElo;
+  eloVal.textContent = settings.engineElo >= 3200 ? 'Tam' : settings.engineElo;
 
   const blunderRange = document.getElementById('blunder-range');
   const blunderVal   = document.getElementById('blunder-val');
