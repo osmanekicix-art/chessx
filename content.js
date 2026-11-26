@@ -56,10 +56,10 @@ function getThinkTime(moveNumber, clockRemainingMs, mode) {
 
   // Time pressure — < 10s remaining
   if (clockRemainingMs > 0 && clockRemainingMs < 10_000) {
-    return 150 + Math.random() * 350;
+    return 400 + Math.random() * 400;
   }
   if (clockRemainingMs > 0 && clockRemainingMs < 30_000) {
-    return 500 + Math.random() * 800;
+    return 1000 + Math.random() * 1000;
   }
 
   let mu, sigma;
