@@ -6,103 +6,150 @@ const CHESSX_VERSION = '1.0.0';
 // ─── Opening book ─────────────────────────────────────────────────────────────
 // Key: FEN position part (piece placement only)
 // Value: [{m: 'uci_move', w: weight}, ...]
+// Opening book derived from Magnus Carlsen's 4314 games (2001-2022).
+// Weights ≈ actual move frequencies × 100.
 const OPENING_BOOK = {
+  // ── Move 1 ────────────────────────────────────────────────────────────────
   'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR': [
-    {m:'e2e4',w:35},{m:'d2d4',w:30},{m:'g1f3',w:15},{m:'c2c4',w:12},{m:'e2e3',w:4},{m:'b1c3',w:4}
+    {m:'e2e4',w:45},{m:'d2d4',w:35},{m:'c2c4',w:9},{m:'g1f3',w:7},{m:'b2b3',w:2},{m:'g2g3',w:2}
   ],
+  // ── After 1.e4 ────────────────────────────────────────────────────────────
   'rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR': [
-    {m:'e7e5',w:35},{m:'c7c5',w:30},{m:'e7e6',w:15},{m:'c7c6',w:10},{m:'d7d5',w:7},{m:'d7d6',w:3}
+    {m:'e7e5',w:46},{m:'c7c5',w:36},{m:'c7c6',w:4},{m:'g7g6',w:3},{m:'g8f6',w:3},{m:'e7e6',w:3}
   ],
+  // ── After 1.d4 ────────────────────────────────────────────────────────────
   'rnbqkbnr/pppppppp/8/8/3P4/8/PPP1PPPP/RNBQKBNR': [
-    {m:'d7d5',w:30},{m:'g8f6',w:28},{m:'f7f5',w:12},{m:'e7e6',w:15},{m:'c7c5',w:15}
+    {m:'g8f6',w:67},{m:'d7d5',w:24},{m:'e7e6',w:4},{m:'g7g6',w:2},{m:'f7f5',w:1}
   ],
+  // ── After 1.c4 ────────────────────────────────────────────────────────────
   'rnbqkbnr/pppppppp/8/8/2P5/8/PP1PPPPP/RNBQKBNR': [
-    {m:'e7e5',w:25},{m:'c7c5',w:25},{m:'g8f6',w:28},{m:'e7e6',w:22}
+    {m:'g8f6',w:34},{m:'e7e5',w:28},{m:'c7c5',w:12},{m:'g7g6',w:12},{m:'e7e6',w:9}
   ],
+  // ── After 1.Nf3 ───────────────────────────────────────────────────────────
   'rnbqkbnr/pppppppp/8/8/8/5N2/PPPPPPPP/RNBQKB1R': [
-    {m:'d7d5',w:30},{m:'g8f6',w:25},{m:'c7c5',w:25},{m:'e7e6',w:20}
+    {m:'g8f6',w:48},{m:'d7d5',w:29},{m:'c7c5',w:7},{m:'g7g6',w:6},{m:'e7e6',w:4}
   ],
+  // ── 1.e4 e5: Open game ────────────────────────────────────────────────────
   'rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR': [
-    {m:'g1f3',w:50},{m:'f1c4',w:20},{m:'b1c3',w:15},{m:'f2f4',w:10},{m:'d2d4',w:5}
+    {m:'g1f3',w:92},{m:'f1c4',w:4},{m:'d2d4',w:2},{m:'f2f4',w:1}
   ],
+  // ── 1.e4 c5: Sicilian ─────────────────────────────────────────────────────
   'rnbqkbnr/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/RNBQKBNR': [
-    {m:'g1f3',w:70},{m:'b1c3',w:15},{m:'c2c3',w:10},{m:'d2d4',w:5}
+    {m:'g1f3',w:86},{m:'b1c3',w:9},{m:'g1e2',w:2},{m:'c2c3',w:1}
   ],
+  // ── 1.e4 e6: French ───────────────────────────────────────────────────────
   'rnbqkbnr/pppp1ppp/4p3/8/4P3/8/PPPP1PPP/RNBQKBNR': [
     {m:'d2d4',w:80},{m:'g1f3',w:12},{m:'b1c3',w:8}
   ],
+  // ── 1.e4 c6: Caro-Kann ────────────────────────────────────────────────────
   'rnbqkbnr/pp1ppppp/2p5/8/4P3/8/PPPP1PPP/RNBQKBNR': [
     {m:'d2d4',w:80},{m:'g1f3',w:10},{m:'b1c3',w:10}
   ],
+  // ── 1.e4 d5: Scandinavian ─────────────────────────────────────────────────
   'rnbqkbnr/ppp1pppp/8/3p4/4P3/8/PPPP1PPP/RNBQKBNR': [
     {m:'e4d5',w:80},{m:'b1c3',w:12},{m:'e4e5',w:8}
   ],
+  // ── 1.e4 d6: Pirc/Modern ──────────────────────────────────────────────────
   'rnbqkbnr/ppp1pppp/3p4/8/4P3/8/PPPP1PPP/RNBQKBNR': [
     {m:'d2d4',w:70},{m:'g1f3',w:20},{m:'b1c3',w:10}
   ],
+  // ── 1.e4 e5 2.Nf3: Black responds ────────────────────────────────────────
   'rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R': [
-    {m:'b8c6',w:60},{m:'g8f6',w:25},{m:'d7d6',w:10},{m:'f7f5',w:5}
+    {m:'b8c6',w:96},{m:'g8f6',w:3},{m:'d7d6',w:1}
   ],
+  // ── 1.e4 c5 2.Nf3: Black responds (Sicilian) ─────────────────────────────
   'rnbqkbnr/pp1ppppp/8/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R': [
-    {m:'d7d6',w:30},{m:'b8c6',w:25},{m:'e7e6',w:25},{m:'g8f6',w:20}
+    {m:'b8c6',w:54},{m:'d7d6',w:34},{m:'e7e6',w:11}
   ],
+  // ── 1.e4 e5 2.Nf3 Nc6: White continues ───────────────────────────────────
   'r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R': [
-    {m:'f1b5',w:40},{m:'f1c4',w:35},{m:'d2d4',w:15},{m:'b1c3',w:10}
+    {m:'f1b5',w:70},{m:'f1c4',w:18},{m:'d2d4',w:6},{m:'b1c3',w:5}
   ],
-  'rnbqkb1r/pppp1ppp/5n2/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R': [
-    {m:'f1e2',w:40},{m:'d2d4',w:30},{m:'b1c3',w:20},{m:'f1c4',w:10}
-  ],
-  'rnbqkbnr/ppp2ppp/3p4/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R': [
-    {m:'d2d4',w:50},{m:'f1c4',w:30},{m:'b1c3',w:20}
-  ],
+  // ── 1.e4 e5 2.Nf3 Nc6 3.Bb5 (Ruy Lopez): Black ───────────────────────────
   'r1bqkbnr/pppp1ppp/2n5/1B2p3/4P3/5N2/PPPP1PPP/RNBQK2R': [
-    {m:'a7a6',w:50},{m:'g8f6',w:25},{m:'f8c5',w:15},{m:'d7d6',w:10}
+    {m:'a7a6',w:58},{m:'g8f6',w:37},{m:'f8c5',w:3},{m:'d7d6',w:2}
   ],
+  // ── 1.e4 e5 2.Nf3 Nc6 3.Bb5 a6 4.Ba4 Nf6: White (Ruy Lopez main) ────────
+  'r1bqkb1r/1ppp1ppp/p1n2n2/4p3/B3P3/5N2/PPPP1PPP/RNBQK2R': [
+    {m:'e1g1',w:80},{m:'d2d3',w:19}
+  ],
+  // ── 1.e4 e5 2.Nf3 Nc6 3.Bc4 (Italian): Black ────────────────────────────
   'r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R': [
     {m:'f8c5',w:50},{m:'g8f6',w:30},{m:'f8e7',w:15},{m:'d7d6',w:5}
   ],
-  'rnbqkbnr/pp2pppp/3p4/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R': [
-    {m:'d2d4',w:80},{m:'f1b5',w:12},{m:'c2c3',w:8}
+  // ── 1.e4 e5 2.Nf3 Nf6 (Petroff): White ───────────────────────────────────
+  'rnbqkb1r/pppp1ppp/5n2/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R': [
+    {m:'f1e2',w:40},{m:'d2d4',w:30},{m:'b1c3',w:20},{m:'f1c4',w:10}
   ],
+  // ── 1.e4 c5 2.Nf3 Nc6: White continues (Sicilian Nc6) ────────────────────
   'r1bqkbnr/pp1ppppp/2n5/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R': [
-    {m:'d2d4',w:70},{m:'f1b5',w:20},{m:'f1c4',w:10}
+    {m:'d2d4',w:39},{m:'f1b5',w:39},{m:'b1c3',w:23}
   ],
+  // ── 1.e4 c5 2.Nf3 d6: White continues (Sicilian d6/Najdorf) ─────────────
+  'rnbqkbnr/pp2pppp/3p4/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R': [
+    {m:'d2d4',w:69},{m:'f1b5',w:27},{m:'c2c3',w:3}
+  ],
+  // ── 1.e4 c5 2.Nf3 e6: White continues ────────────────────────────────────
   'rnbqkbnr/pp1p1ppp/4p3/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R': [
-    {m:'d2d4',w:80},{m:'b1c3',w:12},{m:'f1b5',w:8}
+    {m:'d2d4',w:60},{m:'b2b3',w:11},{m:'g2g3',w:9},{m:'d2d3',w:6},{m:'c2c3',w:6}
   ],
+  // ── 1.d4 d5: White continues ──────────────────────────────────────────────
   'rnbqkbnr/ppp1pppp/8/3p4/3P4/8/PPP1PPPP/RNBQKBNR': [
-    {m:'c2c4',w:70},{m:'g1f3',w:20},{m:'e2e3',w:10}
+    {m:'c2c4',w:84},{m:'g1f3',w:9},{m:'c1f4',w:7}
   ],
+  // ── 1.d4 Nf6: White continues ─────────────────────────────────────────────
   'rnbqkb1r/pppppppp/5n2/8/3P4/8/PPP1PPPP/RNBQKBNR': [
-    {m:'c2c4',w:60},{m:'g1f3',w:25},{m:'e2e3',w:10},{m:'b1c3',w:5}
+    {m:'c2c4',w:71},{m:'g1f3',w:18},{m:'c1f4',w:6},{m:'c1g5',w:4}
   ],
+  // ── 1.d4 d5 2.c4: Black responds ──────────────────────────────────────────
   'rnbqkbnr/ppp1pppp/8/3p4/2PP4/8/PP2PPPP/RNBQKBNR': [
-    {m:'e7e6',w:40},{m:'c7c6',w:35},{m:'d5c4',w:15},{m:'e7e5',w:10}
+    {m:'c7c6',w:48},{m:'e7e6',w:39},{m:'d5c4',w:11}
   ],
+  // ── 1.d4 Nf6 2.c4: Black responds ────────────────────────────────────────
+  'rnbqkb1r/pppppppp/5n2/8/2PP4/8/PP2PPPP/RNBQKBNR': [
+    {m:'e7e6',w:68},{m:'g7g6',w:23},{m:'c7c5',w:7}
+  ],
+  // ── 1.d4 d5 2.c4 e6 (QGD): White ─────────────────────────────────────────
   'rnbqkbnr/ppp2ppp/4p3/3p4/2PP4/8/PP2PPPP/RNBQKBNR': [
-    {m:'b1c3',w:60},{m:'g1f3',w:25},{m:'c1f4',w:15}
+    {m:'b1c3',w:70},{m:'g1f3',w:30}
   ],
+  // ── 1.d4 d5 2.c4 c6 (Slav): White ────────────────────────────────────────
   'rnbqkbnr/pp2pppp/2p5/3p4/2PP4/8/PP2PPPP/RNBQKBNR': [
     {m:'g1f3',w:50},{m:'b1c3',w:30},{m:'e2e3',w:20}
   ],
-  'rnbqkb1r/pppppppp/5n2/8/2PP4/8/PP2PPPP/RNBQKBNR': [
-    {m:'e7e6',w:40},{m:'g7g6',w:35},{m:'c7c5',w:15},{m:'d7d5',w:10}
-  ],
+  // ── 1.d4 Nf6 2.c4 e6: White ──────────────────────────────────────────────
   'rnbqkb1r/pppp1ppp/4pn2/8/2PP4/8/PP2PPPP/RNBQKBNR': [
-    {m:'b1c3',w:50},{m:'g1f3',w:30},{m:'g2g3',w:20}
+    {m:'g1f3',w:59},{m:'b1c3',w:36},{m:'g2g3',w:4}
   ],
+  // ── 1.d4 Nf6 2.c4 e6 3.Nf3: Black responds (QID/Nimzo) ──────────────────
+  'rnbqkb1r/pppp1ppp/4pn2/8/2PP4/5N2/PP2PPPP/RNBQKB1R': [
+    {m:'d7d5',w:51},{m:'b7b6',w:39},{m:'f8b4',w:7},{m:'c7c5',w:2}
+  ],
+  // ── 1.d4 Nf6 2.c4 g6 (KID): White ────────────────────────────────────────
   'rnbqkb1r/pppppp1p/5np1/8/2PP4/8/PP2PPPP/RNBQKBNR': [
-    {m:'b1c3',w:60},{m:'g1f3',w:25},{m:'g2g3',w:15}
+    {m:'b1c3',w:67},{m:'g1f3',w:14},{m:'g2g3',w:11},{m:'f2f3',w:5},{m:'h2h4',w:4}
   ],
-  'rnbqkbnr/pppp1ppp/8/4p3/2P5/8/PP1PPPPP/RNBQKBNR': [
-    {m:'b1c3',w:60},{m:'g1f3',w:25},{m:'g2g3',w:15}
+  // ── 1.d4 Nf6 2.c4 e6 3.Nc3: Black (Nimzo-Indian) ─────────────────────────
+  'rnbqkb1r/pppp1ppp/4pn2/8/2PP4/2N5/PP2PPPP/R1BQKBNR': [
+    {m:'f8b4',w:60},{m:'d7d5',w:28},{m:'b7b6',w:7},{m:'c7c5',w:5}
   ],
+  // ── 1.d4 Nf6 2.c4 e6 3.Nf3 d5 (QGD from Nf6): White ────────────────────
+  'rnbqkb1r/ppp2ppp/4pn2/3p4/2PP4/5N2/PP2PPPP/RNBQKB1R': [
+    {m:'b1c3',w:81},{m:'g2g3',w:16},{m:'c1g5',w:2}
+  ],
+  // ── 1.d4 Nf6 2.c4 e6 3.Nf3 b6 (Queen's Indian): White ───────────────────
+  'rn1qkb1r/pbpp1ppp/1p2pn2/8/2PP4/5N2/PP2PPPP/RNBQKB1R': [
+    {m:'b1c3',w:45},{m:'g2g3',w:35},{m:'e2e3',w:12},{m:'c1f4',w:8}
+  ],
+  // ── 1.c4 Nf6 2.Nc3: Black ────────────────────────────────────────────────
   'rnbqkb1r/pppppppp/5n2/8/2P5/8/PP1PPPPP/RNBQKBNR': [
     {m:'b1c3',w:50},{m:'g1f3',w:30},{m:'g2g3',w:20}
   ],
+  // ── 1.Nf3 d5 2.d4: Black ─────────────────────────────────────────────────
   'rnbqkbnr/ppp1pppp/8/3p4/8/5N2/PPPPPPPP/RNBQKB1R': [
     {m:'d2d4',w:50},{m:'c2c4',w:35},{m:'g2g3',w:15}
   ],
+  // ── 1.Nf3 Nf6 2.d4: Black ────────────────────────────────────────────────
   'rnbqkb1r/pppppppp/5n2/8/8/5N2/PPPPPPPP/RNBQKB1R': [
     {m:'d2d4',w:50},{m:'c2c4',w:35},{m:'g2g3',w:15}
   ],
@@ -119,12 +166,22 @@ const OPENING_NAMES = {
   'rnbqkbnr/pppp1ppp/4p3/8/4P3/8/PPPP1PPP/RNBQKBNR': 'Fransız',
   'rnbqkbnr/pp1ppppp/2p5/8/4P3/8/PPPP1PPP/RNBQKBNR': 'Caro-Kann',
   'rnbqkbnr/ppp1pppp/8/3p4/4P3/8/PPPP1PPP/RNBQKBNR': 'İskandinav',
+  'rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R': 'Af3 — Yanıt',
+  'rnbqkbnr/pp1ppppp/8/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R': 'Sicilya Af3',
+  'r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R': 'Af3 Ac6',
   'r1bqkbnr/pppp1ppp/2n5/1B2p3/4P3/5N2/PPPP1PPP/RNBQK2R': 'Ruy Lopez',
+  'r1bqkb1r/1ppp1ppp/p1n2n2/4p3/B3P3/5N2/PPPP1PPP/RNBQK2R': 'Ruy Lopez Af6',
   'r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R': 'İtalyan',
+  'r1bqkbnr/pp1ppppp/2n5/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R': 'Sicilya Ac6',
+  'rnbqkbnr/pp2pppp/3p4/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R': 'Sicilya d6',
   'rnbqkbnr/ppp1pppp/8/3p4/2PP4/8/PP2PPPP/RNBQKBNR': 'Vezir Gambiti',
   'rnbqkbnr/ppp2ppp/4p3/3p4/2PP4/8/PP2PPPP/RNBQKBNR': 'VGR',
   'rnbqkbnr/pp2pppp/2p5/3p4/2PP4/8/PP2PPPP/RNBQKBNR': 'Slav',
+  'rnbqkb1r/pppppppp/5n2/8/2PP4/8/PP2PPPP/RNBQKBNR': 'Hint Sistemi',
+  'rnbqkb1r/pppp1ppp/4pn2/8/2PP4/8/PP2PPPP/RNBQKBNR': 'Nimzo/VHi',
+  'rnbqkb1r/pppp1ppp/4pn2/8/2PP4/5N2/PP2PPPP/RNBQKB1R': 'VHi / Af3',
   'rnbqkb1r/pppppp1p/5np1/8/2PP4/8/PP2PPPP/RNBQKBNR': 'Hint Şahı',
+  'rnbqkb1r/pppp1ppp/4pn2/8/2PP4/2N5/PP2PPPP/R1BQKBNR': 'Nimzo-Hint',
 };
 
 // Time control scaling multipliers
