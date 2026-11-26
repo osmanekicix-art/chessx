@@ -9,6 +9,7 @@ let settings = {
   mode: 'legit',
   colorOverride: 'auto',
   depth: 15,
+  engineElo: 3200,
   enabled: true,
 };
 
@@ -45,6 +46,12 @@ function applyUI() {
   const depthVal   = document.getElementById('depth-val');
   depthRange.value = settings.depth;
   depthVal.textContent = settings.depth;
+
+  // Engine ELO
+  const eloRange = document.getElementById('elo-range');
+  const eloVal   = document.getElementById('elo-val');
+  eloRange.value = settings.engineElo;
+  eloVal.textContent = settings.engineElo >= 3200 ? 'Full' : settings.engineElo;
 }
 
 // Load settings on open
@@ -87,5 +94,14 @@ document.getElementById('depth-range').addEventListener('input', (e) => {
   document.getElementById('depth-val').textContent = settings.depth;
 });
 document.getElementById('depth-range').addEventListener('change', () => {
+  saveAndBroadcast();
+});
+
+// Engine ELO slider
+document.getElementById('elo-range').addEventListener('input', (e) => {
+  settings.engineElo = parseInt(e.target.value);
+  document.getElementById('elo-val').textContent = settings.engineElo >= 3200 ? 'Full' : settings.engineElo;
+});
+document.getElementById('elo-range').addEventListener('change', () => {
   saveAndBroadcast();
 });

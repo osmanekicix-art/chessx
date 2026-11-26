@@ -8,6 +8,7 @@ const DEFAULT_SETTINGS = {
   mode: 'legit',      // legit | semi | rage | manual
   colorOverride: 'auto', // auto | white | black
   depth: 15,
+  engineElo: 3200,    // 800–3200; 3200 = full strength (no limit)
   enabled: true,
 };
 
@@ -592,13 +593,18 @@ class EngineWrapper {
     }
   }
 
-  // Phase 1 — full strength, top 3 moves
-  analyze(fen, depth = 15) {
+  // Phase 1 — main analysis, top 3 moves (full strength or limited by engineElo)
+  analyze(fen, depth = 15, engineElo = 3200) {
     if (!this.worker) return;
     this.phase = 'main';
     this.currentMoves = [];
     this.worker.postMessage('stop');
-    this.worker.postMessage('setoption name UCI_LimitStrength value false');
+    if (engineElo < 3200) {
+      this.worker.postMessage('setoption name UCI_LimitStrength value true');
+      this.worker.postMessage(`setoption name UCI_Elo value ${Math.max(100, Math.min(3190, engineElo))}`);
+    } else {
+      this.worker.postMessage('setoption name UCI_LimitStrength value false');
+    }
     this.worker.postMessage('setoption name MultiPV value 3');
     this.worker.postMessage(`position fen ${fen}`);
     this.worker.postMessage(`go depth ${depth}`);
@@ -771,7 +777,7 @@ class ChessX {
       `
     });
 
-    this.engine.analyze(fen, this.settings.depth);
+    this.engine.analyze(fen, this.settings.depth, this.settings.engineElo || 3200);
   }
 
   _onEngineResult(moves) {
