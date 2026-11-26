@@ -6,38 +6,38 @@ const CHESSX_VERSION = '1.0.0';
 // ─── Opening book ─────────────────────────────────────────────────────────────
 // Key: FEN position part (piece placement only)
 // Value: [{m: 'uci_move', w: weight}, ...]
-// Opening book merged from Magnus Carlsen (4314 games) + Garry Kasparov (2129 games).
-// Weights ≈ actual move frequencies from combined 6443 real games.
+// Opening book: Carlsen (4314g) + Kasparov (2129g) + Nakamura (4812g) = 11,255 games.
+// Weights ≈ actual move frequencies from combined real game data.
 const OPENING_BOOK = {
   // ── Move 1 ────────────────────────────────────────────────────────────────
+  // Nakamura's signature 1.Nf3 bumps it from 7% to 14%
   'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR': [
-    {m:'e2e4',w:43},{m:'d2d4',w:38},{m:'c2c4',w:9},{m:'g1f3',w:7},{m:'b2b3',w:1},{m:'g2g3',w:1}
+    {m:'e2e4',w:40},{m:'d2d4',w:33},{m:'g1f3',w:14},{m:'c2c4',w:8},{m:'b2b3',w:2}
   ],
   // ── After 1.e4 ────────────────────────────────────────────────────────────
-  // Kasparov c5:87% shifts combined to c5:50%, e5:36%
   'rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR': [
-    {m:'c7c5',w:50},{m:'e7e5',w:36},{m:'c7c6',w:4},{m:'g7g6',w:3},{m:'g8f6',w:2},{m:'e7e6',w:2}
+    {m:'e7e5',w:40},{m:'c7c5',w:39},{m:'g7g6',w:5},{m:'c7c6',w:5},{m:'e7e6',w:3}
   ],
   // ── After 1.d4 ────────────────────────────────────────────────────────────
   'rnbqkbnr/pppppppp/8/8/3P4/8/PPP1PPPP/RNBQKBNR': [
-    {m:'g8f6',w:71},{m:'d7d5',w:23},{m:'e7e6',w:3},{m:'g7g6',w:2},{m:'f7f5',w:1}
+    {m:'g8f6',w:68},{m:'d7d5',w:18},{m:'g7g6',w:6},{m:'f7f5',w:3},{m:'e7e6',w:2}
   ],
   // ── After 1.c4 ────────────────────────────────────────────────────────────
-  // Kasparov's KID influence: g6 jumps to 24%
   'rnbqkbnr/pppppppp/8/8/2P5/8/PP1PPPPP/RNBQKBNR': [
-    {m:'g8f6',w:30},{m:'g7g6',w:24},{m:'e7e5',w:21},{m:'c7c5',w:10},{m:'e7e6',w:8},{m:'c7c6',w:5}
+    {m:'g8f6',w:35},{m:'e7e5',w:27},{m:'g7g6',w:17},{m:'e7e6',w:9},{m:'c7c5',w:6},{m:'c7c6',w:5}
   ],
   // ── After 1.Nf3 ───────────────────────────────────────────────────────────
+  // Nakamura influence: d5:38% (solid, classical response)
   'rnbqkbnr/pppppppp/8/8/8/5N2/PPPPPPPP/RNBQKB1R': [
-    {m:'g8f6',w:52},{m:'d7d5',w:29},{m:'c7c5',w:8},{m:'g7g6',w:6},{m:'e7e6',w:3}
+    {m:'g8f6',w:41},{m:'d7d5',w:38},{m:'g7g6',w:8},{m:'c7c5',w:5},{m:'e7e6',w:2}
   ],
   // ── 1.e4 e5: Open game ────────────────────────────────────────────────────
   'rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR': [
-    {m:'g1f3',w:93},{m:'f1c4',w:3},{m:'f2f4',w:1},{m:'d2d4',w:1}
+    {m:'g1f3',w:90},{m:'b1c3',w:4},{m:'f1c4',w:3},{m:'f2f4',w:2}
   ],
   // ── 1.e4 c5: Sicilian ─────────────────────────────────────────────────────
   'rnbqkbnr/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/RNBQKBNR': [
-    {m:'g1f3',w:88},{m:'b1c3',w:8},{m:'g1e2',w:1},{m:'c2c3',w:1}
+    {m:'g1f3',w:86},{m:'b1c3',w:10},{m:'c2c3',w:2},{m:'g1e2',w:1}
   ],
   // ── 1.e4 e6: French ───────────────────────────────────────────────────────
   'rnbqkbnr/pppp1ppp/4p3/8/4P3/8/PPPP1PPP/RNBQKBNR': [
@@ -56,29 +56,32 @@ const OPENING_BOOK = {
     {m:'d2d4',w:70},{m:'g1f3',w:20},{m:'b1c3',w:10}
   ],
   // ── 1.e4 e5 2.Nf3: Black responds ────────────────────────────────────────
+  // All three GMs agree: Nc6 dominant (98%)
   'rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R': [
-    {m:'b8c6',w:96},{m:'g8f6',w:4}
+    {m:'b8c6',w:98},{m:'g8f6',w:2}
   ],
   // ── 1.e4 c5 2.Nf3: Black responds (Sicilian) ─────────────────────────────
-  // Kasparov d6:74% vs Magnus Nc6:54% → combined d6:52%, Nc6:33%
+  // Nakamura also prefers d6 Najdorf → d6:58%, Nc6:27%, e6:13%
   'rnbqkbnr/pp1ppppp/8/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R': [
-    {m:'d7d6',w:52},{m:'b8c6',w:33},{m:'e7e6',w:14}
+    {m:'d7d6',w:58},{m:'b8c6',w:27},{m:'e7e6',w:13}
   ],
   // ── 1.e4 e5 2.Nf3 Nc6: White continues ───────────────────────────────────
   'r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R': [
-    {m:'f1b5',w:68},{m:'f1c4',w:17},{m:'d2d4',w:10},{m:'b1c3',w:3}
+    {m:'f1b5',w:70},{m:'f1c4',w:14},{m:'d2d4',w:12},{m:'b1c3',w:3}
   ],
   // ── 1.e4 e5 2.Nf3 Nc6 3.Bb5 (Ruy Lopez): Black ───────────────────────────
+  // Nakamura Berlin specialist: Nf6 flips to 54% vs a6:41%
   'r1bqkbnr/pppp1ppp/2n5/1B2p3/4P3/5N2/PPPP1PPP/RNBQK2R': [
-    {m:'a7a6',w:58},{m:'g8f6',w:36},{m:'g7g6',w:2},{m:'f8c5',w:2}
+    {m:'g8f6',w:54},{m:'a7a6',w:41},{m:'g7g6',w:2},{m:'f8c5',w:2}
   ],
   // ── 1.e4 e5 2.Nf3 Nc6 3.Bb5 a6 4.Ba4 Nf6: White (Ruy Lopez main) ────────
   'r1bqkb1r/1ppp1ppp/p1n2n2/4p3/B3P3/5N2/PPPP1PPP/RNBQK2R': [
-    {m:'e1g1',w:80},{m:'d2d3',w:19}
+    {m:'e1g1',w:86},{m:'d2d3',w:12}
   ],
   // ── 1.e4 e5 2.Nf3 Nc6 3.Bc4 (Italian): Black ────────────────────────────
+  // Nakamura Classical Italian: Bc5 rises to 87%
   'r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R': [
-    {m:'f8c5',w:50},{m:'g8f6',w:30},{m:'f8e7',w:15},{m:'d7d6',w:5}
+    {m:'f8c5',w:87},{m:'g8f6',w:13}
   ],
   // ── 1.e4 e5 2.Nf3 Nf6 (Petroff): White ───────────────────────────────────
   'rnbqkb1r/pppp1ppp/5n2/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R': [
@@ -88,9 +91,9 @@ const OPENING_BOOK = {
   'r1bqkbnr/pp1ppppp/2n5/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R': [
     {m:'d2d4',w:39},{m:'f1b5',w:39},{m:'b1c3',w:23}
   ],
-  // ── 1.e4 c5 2.Nf3 d6: White continues (Sicilian Najdorf) ────────────────
+  // ── 1.e4 c5 2.Nf3 d6: White continues (Sicilian Najdorf) ─────────────────
   'rnbqkbnr/pp2pppp/3p4/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R': [
-    {m:'d2d4',w:69},{m:'f1b5',w:27},{m:'c2c3',w:3}
+    {m:'d2d4',w:61},{m:'f1b5',w:26},{m:'b1c3',w:5},{m:'c2c3',w:5}
   ],
   // ── 1.e4 c5 2.Nf3 e6: White continues ────────────────────────────────────
   'rnbqkbnr/pp1p1ppp/4p3/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R': [
@@ -98,7 +101,7 @@ const OPENING_BOOK = {
   ],
   // ── 1.d4 d5: White continues ──────────────────────────────────────────────
   'rnbqkbnr/ppp1pppp/8/3p4/3P4/8/PPP1PPPP/RNBQKBNR': [
-    {m:'c2c4',w:86},{m:'g1f3',w:9},{m:'c1f4',w:5}
+    {m:'c2c4',w:86},{m:'g1f3',w:7},{m:'c1f4',w:4},{m:'b1c3',w:2}
   ],
   // ── 1.d4 Nf6: White continues ─────────────────────────────────────────────
   'rnbqkb1r/pppppppp/5n2/8/3P4/8/PPP1PPPP/RNBQKBNR': [
@@ -106,38 +109,39 @@ const OPENING_BOOK = {
   ],
   // ── 1.d4 d5 2.c4: Black responds ──────────────────────────────────────────
   'rnbqkbnr/ppp1pppp/8/3p4/2PP4/8/PP2PPPP/RNBQKBNR': [
-    {m:'c7c6',w:46},{m:'e7e6',w:39},{m:'d5c4',w:14}
+    {m:'c7c6',w:45},{m:'e7e6',w:36},{m:'d5c4',w:18}
   ],
   // ── 1.d4 Nf6 2.c4: Black responds ────────────────────────────────────────
-  // Kasparov KID g6:76% vs Magnus e6:68% → combined e6:51%, g6:41%
+  // Nakamura KID: g6 rises to 37%, e6:57%
   'rnbqkb1r/pppppppp/5n2/8/2PP4/8/PP2PPPP/RNBQKBNR': [
-    {m:'e7e6',w:51},{m:'g7g6',w:41},{m:'c7c5',w:6}
+    {m:'e7e6',w:57},{m:'g7g6',w:37},{m:'c7c5',w:4}
   ],
   // ── 1.d4 d5 2.c4 e6 (QGD): White ─────────────────────────────────────────
   'rnbqkbnr/ppp2ppp/4p3/3p4/2PP4/8/PP2PPPP/RNBQKBNR': [
-    {m:'b1c3',w:70},{m:'g1f3',w:30}
+    {m:'b1c3',w:73},{m:'g1f3',w:26}
   ],
   // ── 1.d4 d5 2.c4 c6 (Slav): White ────────────────────────────────────────
   'rnbqkbnr/pp2pppp/2p5/3p4/2PP4/8/PP2PPPP/RNBQKBNR': [
-    {m:'g1f3',w:50},{m:'b1c3',w:30},{m:'e2e3',w:20}
+    {m:'g1f3',w:67},{m:'b1c3',w:29},{m:'e2e3',w:3}
   ],
   // ── 1.d4 Nf6 2.c4 e6: White ──────────────────────────────────────────────
   'rnbqkb1r/pppp1ppp/4pn2/8/2PP4/8/PP2PPPP/RNBQKBNR': [
-    {m:'g1f3',w:56},{m:'b1c3',w:38},{m:'g2g3',w:5}
+    {m:'g1f3',w:57},{m:'b1c3',w:38},{m:'g2g3',w:5}
   ],
   // ── 1.d4 Nf6 2.c4 e6 3.Nf3: Black responds (QID/Nimzo) ──────────────────
+  // Nakamura: d5 dominant at 68%, b6 (QID) drops to 24%
   'rnbqkb1r/pppp1ppp/4pn2/8/2PP4/5N2/PP2PPPP/RNBQKB1R': [
-    {m:'d7d5',w:51},{m:'b7b6',w:38},{m:'f8b4',w:6},{m:'c7c5',w:3}
+    {m:'d7d5',w:68},{m:'b7b6',w:24},{m:'f8b4',w:4},{m:'c7c5',w:3}
   ],
   // ── 1.d4 Nf6 2.c4 g6 (KID): White ────────────────────────────────────────
   'rnbqkb1r/pppppp1p/5np1/8/2PP4/8/PP2PPPP/RNBQKBNR': [
-    {m:'b1c3',w:67},{m:'g2g3',w:15},{m:'g1f3',w:12},{m:'f2f3',w:3},{m:'h2h4',w:3}
+    {m:'b1c3',w:69},{m:'g1f3',w:14},{m:'g2g3',w:10},{m:'f2f3',w:6}
   ],
   // ── 1.d4 Nf6 2.c4 e6 3.Nc3: Black (Nimzo-Indian) ─────────────────────────
   'rnbqkb1r/pppp1ppp/4pn2/8/2PP4/2N5/PP2PPPP/R1BQKBNR': [
     {m:'f8b4',w:60},{m:'d7d5',w:28},{m:'b7b6',w:7},{m:'c7c5',w:5}
   ],
-  // ── 1.d4 Nf6 2.c4 e6 3.Nf3 d5 (QGD from Nf6): White ────────────────────
+  // ── 1.d4 Nf6 2.c4 e6 3.Nf3 d5 (QGD): White ─────────────────────────────
   'rnbqkb1r/ppp2ppp/4pn2/3p4/2PP4/5N2/PP2PPPP/RNBQKB1R': [
     {m:'b1c3',w:81},{m:'g2g3',w:16},{m:'c1g5',w:2}
   ],
