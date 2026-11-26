@@ -798,7 +798,7 @@ class ChessX {
     if (this.isBlunder && moves.length > 1) {
       this.eloMove = moves[moves.length - 1]; // worst available = intentional blunder
     } else if (this.settings.mode === 'rage') {
-      this.eloMove = moves[0];
+      this.eloMove = moves[1] || moves[0]; // h2 — second best
     } else {
       const available = Math.min(moves.length, weights.length);
       const slice = weights.slice(0, available);
@@ -809,11 +809,14 @@ class ChessX {
 
     this.blunders.recordMove(this.isBlunder);
 
-    // Phase 2 — weak analysis (opponent ELO - 200)
-    // Always run, even if weakElo might equal best (we still show it)
-    this.weakMove = null;
-    if (this.pendingFen) {
-      this.engine.analyzeWeak(this.pendingFen, this.opponentElo - 200);
+    // Phase 2 — rage: h3 = bestMoves[2] directly; others: weak analysis (opponent ELO - 200)
+    if (this.settings.mode === 'rage') {
+      this.weakMove = moves[2] || moves[1] || moves[0]; // h3 — third best
+    } else {
+      this.weakMove = null;
+      if (this.pendingFen) {
+        this.engine.analyzeWeak(this.pendingFen, this.opponentElo - 200);
+      }
     }
 
     // Partial render with what we have (weakMove = null until phase 2 completes)
