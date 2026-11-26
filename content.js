@@ -332,12 +332,12 @@ class OverlayRenderer {
     this.boardEl = null;
   }
 
-  // Colors for move rankings
+  // Arrow colors by semantic role
   static COLORS = {
-    0: { stroke: '#22c55e', fill: '#22c55e', opacity: 0.85 }, // green - best
-    1: { stroke: '#eab308', fill: '#eab308', opacity: 0.80 }, // yellow - 2nd
-    2: { stroke: '#f97316', fill: '#f97316', opacity: 0.75 }, // orange - 3rd
-    blunder: { stroke: '#ef4444', fill: '#ef4444', opacity: 0.80 }, // red
+    best:    { stroke: '#312e81', fill: '#312e81', opacity: 0.92 }, // near-black — engine best
+    elo:     { stroke: '#22c55e', fill: '#22c55e', opacity: 0.88 }, // green — ELO-weighted pick
+    weak:    { stroke: '#f97316', fill: '#f97316', opacity: 0.80 }, // orange — opponent -200 ELO
+    blunder: { stroke: '#ef4444', fill: '#ef4444', opacity: 0.85 }, // red — intentional blunder
   };
 
   mount(boardEl) {
@@ -357,10 +357,8 @@ class OverlayRenderer {
 
     // Arrow marker defs
     const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
-    ['green', 'yellow', 'orange', 'red'].forEach((name, i) => {
-      const colors = [OverlayRenderer.COLORS[0], OverlayRenderer.COLORS[1],
-                      OverlayRenderer.COLORS[2], OverlayRenderer.COLORS.blunder];
-      defs.appendChild(this._makeMarker(`chessx-arrow-${name}`, colors[i].stroke));
+    ['best', 'elo', 'weak', 'blunder'].forEach(name => {
+      defs.appendChild(this._makeMarker(`chessx-arrow-${name}`, OverlayRenderer.COLORS[name].stroke));
     });
     svg.appendChild(defs);
 
@@ -393,35 +391,35 @@ class OverlayRenderer {
     this.svg = null;
   }
 
-  // Draw analysis results on board
-  // moves: [{ from, to, rank }] where rank 0=best
-  // isFlipped: board orientation
-  // suggestedIdx: which move is "suggested" (highlighted move)
-  // isBlunder: if the suggested move is an intentional blunder
-  render(moves, isFlipped, suggestedIdx, isBlunder = false) {
+  // Draw the three semantic arrows.
+  // bestMove  — engine's #1 (black)
+  // eloMove   — ELO-weighted pick (green); may equal bestMove, still drawn
+  // weakMove  — opponent -200 ELO suggestion (orange); may equal bestMove, still drawn
+  // isBlunder — eloMove is an intentional blunder → swap green for red
+  render({ bestMove, eloMove, weakMove, isFlipped, isBlunder = false }) {
     if (!this.svg || !this.boardEl) return;
 
-    // Clear previous arrows
     while (this.svg.lastChild && this.svg.lastChild.tagName !== 'defs') {
       this.svg.removeChild(this.svg.lastChild);
     }
 
     const rect = this.boardEl.getBoundingClientRect();
-    const sq = rect.width / 8;
+    const sq   = rect.width / 8;
 
-    moves.forEach((move, idx) => {
-      if (!move || !move.from || !move.to) return;
+    // Draw order: weak first (bottom), best second, elo on top
+    const layers = [
+      { move: weakMove,  key: 'weak',    width: 0.09, label: '±' },
+      { move: bestMove,  key: 'best',    width: 0.11, label: '1' },
+      { move: eloMove,   key: isBlunder ? 'blunder' : 'elo', width: 0.13, label: isBlunder ? '!' : '→' },
+    ];
 
-      const isSelected = idx === suggestedIdx;
-      let colorKey = idx;
-      if (isSelected && isBlunder) colorKey = 'blunder';
+    for (const { move, key, width, label } of layers) {
+      if (!move?.from || !move?.to) continue;
 
-      const colorScheme = OverlayRenderer.COLORS[colorKey] || OverlayRenderer.COLORS[2];
-
+      const C    = OverlayRenderer.COLORS[key];
       const from = algebraicToCoords(move.from);
       const to   = algebraicToCoords(move.to);
 
-      // Convert chess coords to SVG pixel coords
       const fFile = isFlipped ? (9 - from.file) : from.file;
       const fRank = isFlipped ? from.rank : (9 - from.rank);
       const tFile = isFlipped ? (9 - to.file) : to.file;
@@ -432,48 +430,42 @@ class OverlayRenderer {
       const x2 = (tFile - 0.5) * sq;
       const y2 = (tRank - 0.5) * sq;
 
-      // Draw "from" circle
+      // "from" highlight circle
       const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
       circle.setAttribute('cx', x1);
       circle.setAttribute('cy', y1);
-      circle.setAttribute('r', sq * 0.42);
-      circle.setAttribute('fill', colorScheme.fill);
-      circle.setAttribute('fill-opacity', colorScheme.opacity * (isSelected ? 1 : 0.5));
-      circle.setAttribute('stroke', 'none');
+      circle.setAttribute('r', sq * 0.38);
+      circle.setAttribute('fill', C.fill);
+      circle.setAttribute('fill-opacity', C.opacity * 0.55);
       this.svg.appendChild(circle);
 
-      // Draw arrow line
-      const markerNames = ['green', 'yellow', 'orange', 'red'];
-      const markerName = isSelected && isBlunder ? 'red' : markerNames[colorKey] || 'orange';
-
+      // Arrow shaft
       const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
       line.setAttribute('x1', x1);
       line.setAttribute('y1', y1);
       line.setAttribute('x2', x2);
       line.setAttribute('y2', y2);
-      line.setAttribute('stroke', colorScheme.stroke);
-      line.setAttribute('stroke-width', isSelected ? sq * 0.14 : sq * 0.09);
-      line.setAttribute('stroke-opacity', colorScheme.opacity * (isSelected ? 1 : 0.55));
-      line.setAttribute('marker-end', `url(#chessx-arrow-${markerName})`);
+      line.setAttribute('stroke', C.stroke);
+      line.setAttribute('stroke-width', sq * width);
+      line.setAttribute('stroke-opacity', C.opacity);
+      line.setAttribute('marker-end', `url(#chessx-arrow-${key})`);
       this.svg.appendChild(line);
 
-      // Label rank on arrow
-      if (moves.length > 1) {
-        const mx = (x1 + x2) / 2;
-        const my = (y1 + y2) / 2;
-        const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-        text.setAttribute('x', mx);
-        text.setAttribute('y', my);
-        text.setAttribute('text-anchor', 'middle');
-        text.setAttribute('dominant-baseline', 'central');
-        text.setAttribute('font-size', sq * 0.22);
-        text.setAttribute('font-weight', 'bold');
-        text.setAttribute('fill', 'white');
-        text.setAttribute('fill-opacity', '0.9');
-        text.textContent = idx + 1;
-        this.svg.appendChild(text);
-      }
-    });
+      // Label near midpoint
+      const mx = (x1 * 0.4 + x2 * 0.6);
+      const my = (y1 * 0.4 + y2 * 0.6);
+      const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      txt.setAttribute('x', mx);
+      txt.setAttribute('y', my);
+      txt.setAttribute('text-anchor', 'middle');
+      txt.setAttribute('dominant-baseline', 'central');
+      txt.setAttribute('font-size', sq * 0.20);
+      txt.setAttribute('font-weight', 'bold');
+      txt.setAttribute('fill', 'white');
+      txt.setAttribute('fill-opacity', '0.95');
+      txt.textContent = label;
+      this.svg.appendChild(txt);
+    }
   }
 
   clear() {
@@ -538,30 +530,29 @@ class InfoPanel {
 }
 
 // ─── Stockfish engine wrapper ─────────────────────────────────────────────────
-// stockfish.js (nmrugg/chess.com build) sets up its own onmessage/postMessage
-// UCI loop when loaded as a Worker — communicate with plain string messages.
+// Two-phase analysis:
+//   Phase 'main' — MultiPV 3, full strength → onResult([move0, move1, move2])
+//   Phase 'weak' — MultiPV 1, UCI_LimitStrength at (opponentElo-200) → onWeakResult(move)
 class EngineWrapper {
   constructor() {
-    this.worker = null;
-    this.ready  = false;
-    this.currentMoves  = [];
-    this.onResult = null; // callback(moves[])
+    this.worker       = null;
+    this.ready        = false;
+    this.phase        = null;   // 'main' | 'weak' | null
+    this.currentMoves = [];
+    this.onResult     = null;   // callback(moves[])
+    this.onWeakResult = null;   // callback(move)
   }
 
   init() {
     if (this.worker) return;
-
     try {
       this.worker = new Worker(chrome.runtime.getURL('stockfish.js'));
     } catch (e) {
       console.error('[ChessX] Worker init failed:', e);
       return;
     }
-
     this.worker.onmessage = (e) => this._handleLine(e.data);
     this.worker.onerror   = (e) => console.error('[ChessX] Worker error:', e.message);
-
-    // Boot UCI handshake
     this.worker.postMessage('uci');
     this.worker.postMessage('isready');
   }
@@ -569,56 +560,80 @@ class EngineWrapper {
   _handleLine(line) {
     if (typeof line !== 'string') return;
 
-    if (line === 'readyok') {
-      this.ready = true;
-      return;
-    }
+    if (line === 'readyok') { this.ready = true; return; }
 
-    // Parse multipv info lines: "info depth 15 multipv 1 ... pv e2e4 ..."
-    const pvMatch = line.match(/multipv (\d+).*? pv (\S+)/);
-    if (pvMatch) {
-      const idx  = parseInt(pvMatch[1]) - 1; // 0-indexed
-      const move = pvMatch[2];
-      this.currentMoves[idx] = parseUciMove(move);
-    }
-
-    // bestmove signals analysis complete for this position
-    if (line.startsWith('bestmove')) {
-      const moves = this.currentMoves.filter(Boolean);
-      if (this.onResult && moves.length > 0) {
-        this.onResult([...moves]);
+    if (this.phase === 'main') {
+      const pvMatch = line.match(/multipv (\d+).*? pv (\S+)/);
+      if (pvMatch) {
+        const idx = parseInt(pvMatch[1]) - 1;
+        this.currentMoves[idx] = parseUciMove(pvMatch[2]);
       }
-      this.currentMoves = [];
+      if (line.startsWith('bestmove')) {
+        const moves = this.currentMoves.filter(Boolean);
+        this.phase = null;
+        this.currentMoves = [];
+        if (this.onResult && moves.length > 0) this.onResult([...moves]);
+      }
+    } else if (this.phase === 'weak') {
+      // Single PV — grab first pv move
+      const pvMatch = line.match(/\bpv (\S+)/);
+      if (pvMatch && !this.currentMoves[0]) {
+        this.currentMoves[0] = parseUciMove(pvMatch[1]);
+      }
+      if (line.startsWith('bestmove')) {
+        const move = this.currentMoves[0] || null;
+        this.phase = null;
+        this.currentMoves = [];
+        // Restore full-strength for next main analysis
+        this.worker.postMessage('setoption name UCI_LimitStrength value false');
+        this.worker.postMessage('setoption name MultiPV value 3');
+        if (this.onWeakResult) this.onWeakResult(move);
+      }
     }
   }
 
-  analyze(fen, depth = 15, multiPV = 3) {
+  // Phase 1 — full strength, top 3 moves
+  analyze(fen, depth = 15) {
     if (!this.worker) return;
+    this.phase = 'main';
     this.currentMoves = [];
     this.worker.postMessage('stop');
-    this.worker.postMessage(`setoption name MultiPV value ${multiPV}`);
+    this.worker.postMessage('setoption name UCI_LimitStrength value false');
+    this.worker.postMessage('setoption name MultiPV value 3');
+    this.worker.postMessage(`position fen ${fen}`);
+    this.worker.postMessage(`go depth ${depth}`);
+  }
+
+  // Phase 2 — strength-limited, single best move at weakElo
+  analyzeWeak(fen, weakElo, depth = 12) {
+    if (!this.worker) return;
+    const elo = Math.max(100, Math.min(3190, weakElo));
+    this.phase = 'weak';
+    this.currentMoves = [];
+    this.worker.postMessage('stop');
+    this.worker.postMessage('setoption name UCI_LimitStrength value true');
+    this.worker.postMessage(`setoption name UCI_Elo value ${elo}`);
+    this.worker.postMessage('setoption name MultiPV value 1');
     this.worker.postMessage(`position fen ${fen}`);
     this.worker.postMessage(`go depth ${depth}`);
   }
 
   stop() {
-    if (this.worker) this.worker.postMessage('stop');
+    if (this.worker) { this.worker.postMessage('stop'); this.phase = null; }
   }
 
   newGame() {
     if (this.worker) {
+      this.worker.postMessage('stop');
       this.worker.postMessage('ucinewgame');
       this.worker.postMessage('isready');
     }
+    this.phase = null;
     this.currentMoves = [];
   }
 
   destroy() {
-    if (this.worker) {
-      this.worker.postMessage('quit');
-      this.worker.terminate();
-      this.worker = null;
-    }
+    if (this.worker) { this.worker.postMessage('quit'); this.worker.terminate(); this.worker = null; }
     this.ready = false;
   }
 }
@@ -632,14 +647,17 @@ class ChessX {
     this.panel       = new InfoPanel();
     this.engine      = new EngineWrapper();
     this.blunders    = new BlunderTracker();
+    this.opponentElo = 1200;
 
-    this.lastFen     = null;
-    this.myColor     = null;
-    this.moveCount   = 0;
-    this.bestMoves   = [];
-    this.suggestedIdx = 0;
-    this.isBlunder   = false;
-    this.thinkMs     = 0;
+    this.lastFen      = null;
+    this.myColor      = null;
+    this.moveCount    = 0;
+    this.pendingFen   = null; // FEN waiting for weak analysis
+    this.bestMoves    = [];   // top 3 from main analysis
+    this.eloMove      = null; // ELO-weighted pick
+    this.weakMove     = null; // opponent -200 ELO pick
+    this.isBlunder    = false;
+    this.thinkMs      = 0;
 
     this.pollId      = null;
     this.mounted     = false;
@@ -659,7 +677,8 @@ class ChessX {
     if (!this.settings.enabled) return;
 
     this.engine.init();
-    this.engine.onResult = (moves) => this._onEngineResult(moves);
+    this.engine.onResult     = (moves) => this._onEngineResult(moves);
+    this.engine.onWeakResult = (move)  => this._onWeakResult(move);
 
     this.panel.mount();
     this.panel.update({ status: 'ready', html: 'Waiting for board…' });
@@ -720,69 +739,85 @@ class ChessX {
     }
 
     // Start analysis
-    const opponentElo = this.boardReader.readOpponentRating(this.myColor);
-    const clockMs     = this.boardReader.readClock(this.myColor);
-    this.thinkMs      = getThinkTime(this.moveCount, clockMs, this.settings.mode);
+    this.opponentElo = this.boardReader.readOpponentRating(this.myColor);
+    const clockMs    = this.boardReader.readClock(this.myColor);
+    this.thinkMs     = getThinkTime(this.moveCount, clockMs, this.settings.mode);
+    this.pendingFen  = fen;
 
     this.panel.update({
       status: 'analyzing…',
       html: `
         Mode: <b>${this.settings.mode}</b><br>
         Color: <b>${this.myColor}</b><br>
-        Opp ELO: <b>${opponentElo}</b><br>
+        Opp ELO: <b>${this.opponentElo}</b><br>
         Clock: <b>${clockMs >= 0 ? (clockMs / 1000).toFixed(1) + 's' : '?'}</b><br>
         Think: <b>${(this.thinkMs / 1000).toFixed(1)}s</b>
       `
     });
 
-    this.engine.analyze(fen, this.settings.depth, 3);
+    this.engine.analyze(fen, this.settings.depth);
   }
 
   _onEngineResult(moves) {
     this.bestMoves = moves;
 
-    const opponentElo = this.boardReader.readOpponentRating(this.myColor);
-    const weights     = getEloWeights(opponentElo, this.settings.mode);
+    const weights = getEloWeights(this.opponentElo, this.settings.mode);
 
-    // Decide blunder
+    // Pick ELO-weighted move
     this.isBlunder = this.blunders.shouldBlunder(this.settings.mode);
 
-    if (this.settings.mode === 'manual') {
-      // Show all moves, no highlight
-      this.suggestedIdx = -1;
-    } else if (this.isBlunder && moves.length > 1) {
-      // Pick worst move (last in list)
-      this.suggestedIdx = moves.length - 1;
+    if (this.isBlunder && moves.length > 1) {
+      this.eloMove = moves[moves.length - 1]; // worst available = intentional blunder
+    } else if (this.settings.mode === 'rage') {
+      this.eloMove = moves[0];
     } else {
-      // Pick based on ELO weights — only among available moves
       const available = Math.min(moves.length, weights.length);
-      const slicedWeights = weights.slice(0, available);
-      const total = slicedWeights.reduce((a, b) => a + b, 0);
-      const norm  = slicedWeights.map(w => w / total);
-      this.suggestedIdx = pickMoveIndex(norm);
+      const slice = weights.slice(0, available);
+      const total = slice.reduce((a, b) => a + b, 0);
+      const norm  = slice.map(w => w / total);
+      this.eloMove = moves[pickMoveIndex(norm)];
     }
 
     this.blunders.recordMove(this.isBlunder);
 
-    const isFlipped = this.myColor === 'black';
-    this.overlay.render(moves, isFlipped, this.suggestedIdx, this.isBlunder);
+    // Phase 2 — weak analysis (opponent ELO - 200)
+    // Always run, even if weakElo might equal best (we still show it)
+    this.weakMove = null;
+    if (this.pendingFen) {
+      this.engine.analyzeWeak(this.pendingFen, this.opponentElo - 200);
+    }
 
-    const suggested = moves[this.suggestedIdx];
-    const moveStr   = suggested
-      ? `<b style="color:${this.isBlunder ? '#f87171' : '#86efac'}">${suggested.from}→${suggested.to}</b>${this.isBlunder ? ' ⚠ blunder' : ''}`
-      : '—';
+    // Partial render with what we have (weakMove = null until phase 2 completes)
+    this._renderAll();
+  }
+
+  _onWeakResult(move) {
+    this.weakMove = move;
+    this._renderAll();
+  }
+
+  _renderAll() {
+    const isFlipped = this.myColor === 'black';
+    this.overlay.render({
+      bestMove: this.bestMoves[0] || null,
+      eloMove:  this.eloMove,
+      weakMove: this.weakMove,
+      isFlipped,
+      isBlunder: this.isBlunder,
+    });
+
+    const best = this.bestMoves[0];
+    const elo  = this.eloMove;
+    const weak = this.weakMove;
 
     this.panel.update({
-      status: 'ready',
+      status: weak ? 'ready' : 'weak…',
       html: `
-        Mode: <b>${this.settings.mode}</b><br>
-        Color: <b>${this.myColor}</b><br>
-        Suggested: ${moveStr}<br>
-        Think: <b>${(this.thinkMs / 1000).toFixed(1)}s</b><br>
-        Opp ELO: <b>${this.boardReader.readOpponentRating(this.myColor)}</b>
-        ${moves.map((m, i) =>
-          `<br><span style="color:${['#86efac','#fde047','#fb923c'][i] || '#94a3b8'}">${i + 1}. ${m.from}→${m.to}</span>`
-        ).join('')}
+        Mode: <b>${this.settings.mode}</b> · Color: <b>${this.myColor}</b><br>
+        Think: <b>${(this.thinkMs / 1000).toFixed(1)}s</b> · Opp: <b>${this.opponentElo}</b><br>
+        <span style="color:#818cf8">●</span> Best: <b>${best ? best.from + '→' + best.to : '…'}</b><br>
+        <span style="color:#86efac">●</span> ELO pick: <b style="color:${this.isBlunder ? '#f87171' : '#86efac'}">${elo ? elo.from + '→' + elo.to : '…'}${this.isBlunder ? ' ⚠' : ''}</b><br>
+        <span style="color:#fb923c">●</span> -200 ELO: <b>${weak ? weak.from + '→' + weak.to : '…'}</b>
       `
     });
   }
