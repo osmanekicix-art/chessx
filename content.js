@@ -14,23 +14,29 @@ const DEFAULT_SETTINGS = {
 
 // ─── ELO weight tables ───────────────────────────────────────────────────────
 // Returns [w1, w2, w3] for move1/move2/move3 probability weights
-function getEloWeights(opponentElo, mode) {
+// elo = engine ELO slider value (your playing level)
+function getEloWeights(elo, mode) {
   if (mode === 'rage') return [1.0, 0.0, 0.0];
   if (mode === 'manual') return [0.33, 0.33, 0.34];
 
   let w1, w2, w3;
-  if      (opponentElo < 800)  { w1 = 0.40; w2 = 0.35; w3 = 0.25; }
-  else if (opponentElo < 1200) { w1 = 0.55; w2 = 0.30; w3 = 0.15; }
-  else if (opponentElo < 1600) { w1 = 0.65; w2 = 0.25; w3 = 0.10; }
-  else if (opponentElo < 2000) { w1 = 0.75; w2 = 0.20; w3 = 0.05; }
-  else                         { w1 = 0.85; w2 = 0.12; w3 = 0.03; }
+  if      (elo >= 3200) { w1 = 1.00; w2 = 0.00; w3 = 0.00; }
+  else if (elo >= 2500) { w1 = 0.85; w2 = 0.12; w3 = 0.03; }
+  else if (elo >= 2000) { w1 = 0.825; w2 = 0.14; w3 = 0.035; }
+  else if (elo >= 1600) { w1 = 0.75; w2 = 0.19; w3 = 0.06; }
+  else if (elo >= 1200) { w1 = 0.70; w2 = 0.20; w3 = 0.10; }
+  else                  { w1 = 0.50; w2 = 0.33; w3 = 0.17; }
 
   if (mode === 'semi') {
-    w1 = Math.min(w1 + 0.10, 0.92);
+    w1 = Math.min(w1 + 0.10, 1.0);
     const rem = 1 - w1;
-    const ratio = w2 / (w2 + w3);
-    w2 = rem * ratio;
-    w3 = rem * (1 - ratio);
+    if (rem > 0 && (w2 + w3) > 0) {
+      const ratio = w2 / (w2 + w3);
+      w2 = rem * ratio;
+      w3 = rem * (1 - ratio);
+    } else {
+      w2 = 0; w3 = 0;
+    }
   }
   return [w1, w2, w3];
 }
