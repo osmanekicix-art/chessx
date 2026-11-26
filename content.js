@@ -783,7 +783,8 @@ class ChessX {
   _onEngineResult(moves) {
     this.bestMoves = moves;
 
-    const weights = getEloWeights(this.opponentElo, this.settings.mode);
+    // legit/semi weights shaped by engine ELO slider (your level), not opponent ELO
+    const weights = getEloWeights(this.settings.engineElo || 3200, this.settings.mode);
 
     // Pick ELO-weighted move
     this.isBlunder = this.blunders.shouldBlunder(this.settings.mode);
