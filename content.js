@@ -2505,10 +2505,24 @@ class EngineWrapper {
     this.skipNextBestmove = false; // skip the bestmove triggered by stop() inside analyze()
   }
 
-  init() {
+  async init() {
     if (this.worker) return;
-    try { this.worker = new Worker(chrome.runtime.getURL('stockfish.js')); }
-    catch (e) { console.error('[ChessX] Worker init failed:', e); return; }
+    try {
+      // Fetch stockfish.js and create a blob worker to bypass chess.com's CSP (worker-src 'self').
+      const jsUrl   = chrome.runtime.getURL('stockfish.js');
+      const wasmUrl = chrome.runtime.getURL('stockfish.wasm');
+      const resp    = await fetch(jsUrl);
+      let code      = await resp.text();
+      // Patch any relative reference to stockfish.wasm with the absolute extension URL.
+      code = code.replace(/['"]stockfish\.wasm['"]/g, `'${wasmUrl}'`);
+      const blob    = new Blob([code], { type: 'text/javascript' });
+      const blobUrl = URL.createObjectURL(blob);
+      this.worker   = new Worker(blobUrl);
+      URL.revokeObjectURL(blobUrl);
+    } catch (e) {
+      console.error('[ChessX] Worker init failed:', e);
+      return;
+    }
     this.worker.onmessage = (e) => this._handleLine(e.data);
     this.worker.onerror   = (e) => console.error('[ChessX] Worker error:', e.message);
     this.worker.postMessage('uci');
@@ -2646,7 +2660,7 @@ class ChessX {
   async start() {
     await this.loadSettings();
     if (!this.settings.enabled) return;
-    this.engine.init();
+    await this.engine.init();
     this.engine.onResult     = (moves) => this._onEngineResult(moves);
     this.engine.onWeakResult = (move)  => this._onWeakResult(move);
     this.panel.mount();
