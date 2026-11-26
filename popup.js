@@ -12,7 +12,7 @@ let settings = {
   engineElo:     3200,
   enabled:       true,
   blunderCount:  2,
-  timePreset:    'blitz',
+  timePreset:    null,
 };
 
 function saveAndBroadcast() {
@@ -39,6 +39,8 @@ function applyUI() {
   document.querySelectorAll('.preset-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.preset === settings.timePreset);
   });
+  const warn = document.getElementById('tc-warn');
+  if (warn) warn.style.display = settings.timePreset ? 'none' : 'block';
 
   const depthRange = document.getElementById('depth-range');
   const depthVal   = document.getElementById('depth-val');

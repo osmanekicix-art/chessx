@@ -114,12 +114,14 @@
 
 <div class="section">
   <div class="section-title">Time control</div>
-  <div class="preset-row">
-    <button class="preset-btn" data-preset="bullet">Bullet</button>
-    <button class="preset-btn active" data-preset="blitz">Blitz</button>
-    <button class="preset-btn" data-preset="rapid">Rapid</button>
+  <div class="preset-row" id="preset-row">
+    <button class="preset-btn" data-preset="1+0">1+0</button>
+    <button class="preset-btn" data-preset="1+1">1+1</button>
+    <button class="preset-btn" data-preset="2+1">2+1</button>
+    <button class="preset-btn" data-preset="3+0">3+0</button>
+    <button class="preset-btn" data-preset="3+2">3+2</button>
   </div>
-  <div class="hint">Bullet ×0.3 · Blitz ×1.0 · Rapid ×1.8</div>
+  <div class="hint" id="tc-warn" style="color:#f87171;display:none">⚠ Seçmeden engine başlamaz</div>
 </div>
 
 <div class="section">

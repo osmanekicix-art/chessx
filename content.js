@@ -2003,7 +2003,7 @@ const OPENING_NAMES = {
 };
 
 // Time control scaling multipliers
-const TIME_PRESETS = { bullet: 0.3, blitz: 1.0, rapid: 1.8 };
+const TIME_PRESETS = { '1+0': 0.25, '1+1': 0.30, '2+1': 0.45, '3+0': 0.65, '3+2': 0.85 };
 
 // ─── Default settings ─────────────────────────────────────────────────────────
 const DEFAULT_SETTINGS = {
@@ -2013,7 +2013,7 @@ const DEFAULT_SETTINGS = {
   engineElo:     3200,
   enabled:       true,
   blunderCount:  2,       // intentional blunders per game (0–5)
-  timePreset:    'blitz', // bullet | blitz | rapid
+  timePreset:    null,    // must be set before engine starts
 };
 
 // ─── ELO weight tables ────────────────────────────────────────────────────────
@@ -2683,6 +2683,11 @@ class ChessX {
   _tick() {
     if (!this.settings.enabled) return;
     this._mountOverlay();
+    if (!this.settings.timePreset) {
+      this.overlay.clear();
+      this.panel.update({ status: '⚠ zaman?', html: `<b style="color:#fbbf24">Zaman kontrolü seçilmedi.</b><br>Popup'tan seç:<br><b>1+0 · 1+1 · 2+1 · 3+0 · 3+2</b>` });
+      return;
+    }
 
     const fen = this.boardReader.buildFen();
     if (!fen || fen === this.lastFen) return;
