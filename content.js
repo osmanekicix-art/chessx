@@ -2052,23 +2052,40 @@ function pickMoveIndex(weights) {
 function getThinkTime(moveNumber, clockRemainingMs, mode, timeMultiplier = 1.0) {
   if (mode === 'rage') return 300 + Math.random() * 400;
 
-  if (clockRemainingMs > 0 && clockRemainingMs < 10_000) {
-    return 400 + Math.random() * 400;
+  const isBullet = timeMultiplier <= 0.35; // bullet preset = 0.3
+
+  // Bullet-specific clock panic thresholds
+  const panicThreshold = isBullet ? 15_000 : 10_000;
+  const rushThreshold  = isBullet ? 25_000 : 30_000;
+
+  if (clockRemainingMs > 0 && clockRemainingMs < panicThreshold) {
+    return 150 + Math.random() * 250;    // 150–400ms, near-instant
   }
-  if (clockRemainingMs > 0 && clockRemainingMs < 30_000) {
-    return 1000 + Math.random() * 1000;
+  if (clockRemainingMs > 0 && clockRemainingMs < rushThreshold) {
+    return isBullet
+      ? 300 + Math.random() * 300        // 300–600ms for bullet
+      : 1000 + Math.random() * 1000;
   }
 
   let mu, sigma;
-  if (moveNumber <= 10)      { mu = Math.log(1800); sigma = 0.4;  }
-  else if (moveNumber <= 30) { mu = Math.log(7000); sigma = 0.55; }
-  else                       { mu = Math.log(4000); sigma = 0.45; }
+  if (isBullet) {
+    // Bullet: much tighter distribution — total ~30s for 40 moves
+    if (moveNumber <= 10)      { mu = Math.log(300);  sigma = 0.35; }
+    else if (moveNumber <= 30) { mu = Math.log(600);  sigma = 0.40; }
+    else                       { mu = Math.log(350);  sigma = 0.35; }
+  } else {
+    if (moveNumber <= 10)      { mu = Math.log(1800); sigma = 0.4;  }
+    else if (moveNumber <= 30) { mu = Math.log(7000); sigma = 0.55; }
+    else                       { mu = Math.log(4000); sigma = 0.45; }
+  }
 
   const u1 = Math.random() || 1e-9;
   const u2 = Math.random();
   const z  = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
   const ms = Math.round(Math.exp(mu + sigma * z));
-  return Math.max(500, Math.min(ms, 60_000)) * timeMultiplier;
+  const minMs = isBullet ? 100 : 500;
+  const maxMs = isBullet ? 3000 : 60_000;
+  return Math.max(minMs, Math.min(ms, maxMs)) * (isBullet ? 1.0 : timeMultiplier);
 }
 
 // ─── Blunder tracker ──────────────────────────────────────────────────────────
@@ -2538,8 +2555,9 @@ class EngineWrapper {
     this.worker.postMessage('setoption name MultiPV value 3');
     this.worker.postMessage(`position fen ${fen}`);
     // go depth + movetime: stops at whichever comes first.
-    // movetime = thinkMs capped to avoid running past the think window.
-    const moveTimeMs = thinkMs > 0 ? Math.max(800, Math.min(thinkMs - 200, 8000)) : 5000;
+    // movetime floor scales with think time to avoid overrunning bullet moves.
+    const mtFloor = thinkMs > 0 && thinkMs < 600 ? 150 : thinkMs > 0 && thinkMs < 1500 ? 400 : 800;
+    const moveTimeMs = thinkMs > 0 ? Math.max(mtFloor, Math.min(thinkMs - 100, 8000)) : 5000;
     this.worker.postMessage(`go depth ${depth} movetime ${moveTimeMs}`);
   }
 
