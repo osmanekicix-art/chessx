@@ -103,7 +103,7 @@ document.getElementById('depth-range').addEventListener('change', () => { saveAn
 
 document.getElementById('elo-range').addEventListener('input', (e) => {
   settings.engineElo = parseInt(e.target.value);
-  document.getElementById('elo-val').textContent = settings.engineElo >= 3200 ? 'Full' : settings.engineElo;
+  document.getElementById('elo-val').textContent = settings.engineElo >= 3200 ? 'Tam' : settings.engineElo;
 });
 document.getElementById('elo-range').addEventListener('change', () => { saveAndBroadcast(); });
 

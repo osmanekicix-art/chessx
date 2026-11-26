@@ -2636,7 +2636,7 @@ class ChessX {
     this.engine.onResult     = (moves) => this._onEngineResult(moves);
     this.engine.onWeakResult = (move)  => this._onWeakResult(move);
     this.panel.mount();
-    this.panel.update({ status: 'ready', html: 'Waiting for board…' });
+    this.panel.update({ status: 'hazır', html: 'Tahta bekleniyor…' });
     this._mountOverlay();
     this._startPolling();
     chrome.runtime.onMessage.addListener((msg) => {
@@ -2844,8 +2844,8 @@ class ChessX {
     const bookLine = this.isBook
       ? `${this.currentOpening ? `<span style="color:#67e8f9;font-size:10px">📖 ${this.currentOpening}</span><br>` : ''}<span style="color:#67e8f9">●</span> Kitap: <b style="color:#67e8f9">${elo ? elo.from+'→'+elo.to : '…'}</b>`
       : `
-        <span style="color:#818cf8">●</span> Best: <b>${best ? best.from+'→'+best.to : '…'}</b>${sc(best)}<br>
-        <span style="color:#86efac">●</span> ELO pick: <b style="color:${this.isBlunder ? '#f87171' : '#86efac'}">${elo ? elo.from+'→'+elo.to : '…'}${this.isBlunder ? ' ⚠' : ''}</b>${sc(elo)}<br>
+        <span style="color:#818cf8">●</span> En iyi: <b>${best ? best.from+'→'+best.to : '…'}</b>${sc(best)}<br>
+        <span style="color:#86efac">●</span> ELO seçimi: <b style="color:${this.isBlunder ? '#f87171' : '#86efac'}">${elo ? elo.from+'→'+elo.to : '…'}${this.isBlunder ? ' ⚠' : ''}</b>${sc(elo)}<br>
         <span style="color:#fb923c">●</span> -200 ELO: <b>${weak ? weak.from+'→'+weak.to : '…'}</b>${sc(weak)}
       `;
 
@@ -2880,7 +2880,7 @@ class ChessX {
       this.blunders.reset(this.settings.blunderCount ?? 2);
     }
     this.overlay.clear();
-    this.panel.update({ status: 'restarted', html: 'Engine restarted — waiting for board…' });
+    this.panel.update({ status: 'yenilendi', html: 'Engine yenilendi — tahta bekleniyor…' });
   }
 
   stop() {
@@ -2924,9 +2924,19 @@ setInterval(() => {
     const fen = instance.boardReader.buildFen();
     const isStartPos = fen && fen.startsWith('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR');
     if (isStartPos && instance.lastFen && !instance.lastFen.startsWith('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR')) {
-      instance.moveCount   = 0;
+      instance.moveCount    = 0;
       instance.openingPhase = true;
-      instance.lastFen     = null;
+      instance.lastFen      = null;
+      instance.pendingFen   = null;
+      instance.bestMoves    = [];
+      instance.eloMove      = null;
+      instance.weakMove     = null;
+      instance.isBook       = false;
+      instance.isBlunder    = false;
+      instance.engine.newGame();
+      if (instance.settings.mode === 'legit' || instance.settings.mode === 'semi') {
+        instance.blunders.reset(instance.settings.blunderCount ?? 2);
+      }
     }
   }
 }, 1000);
