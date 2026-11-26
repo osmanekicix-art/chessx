@@ -2496,79 +2496,61 @@ class InfoPanel {
 // ─── Stockfish engine wrapper ─────────────────────────────────────────────────
 class EngineWrapper {
   constructor() {
-    this.worker           = null;
+    this.port             = null;
     this.ready            = false;
     this.phase            = null;
     this.currentMoves     = [];
     this.onResult         = null;
     this.onWeakResult     = null;
-    this.skipNextBestmove = false; // skip the bestmove triggered by stop() inside analyze()
+    this.isSearching      = false; // true while a 'go' command is active
+    this.skipNextBestmove = false; // skip the ONE bestmove emitted by stop() mid-search
   }
 
+  // Connect to the background service worker that owns the Stockfish sub-worker.
+  // All CSP restrictions from chess.com are irrelevant there.
   async init() {
-    if (this.worker) return;
-    try {
-      const jsUrl   = chrome.runtime.getURL('stockfish.js');
-      const wasmUrl = chrome.runtime.getURL('stockfish.wasm');
-
-      // Fetch both assets from the content-script context, which can always reach
-      // web_accessible_resources regardless of the page CSP.
-      const [jsCode, wasmBuf] = await Promise.all([
-        fetch(jsUrl).then(r => r.text()),
-        fetch(wasmUrl).then(r => r.arrayBuffer()),
-      ]);
-
-      // Encode WASM as base64 so we can embed it inline in the blob worker source.
-      // This eliminates any outbound fetch inside the worker (bypasses CSP connect-src).
-      const wasmBytes = new Uint8Array(wasmBuf);
-      let bin = '';
-      for (let i = 0, n = wasmBytes.length, C = 8192; i < n; i += C)
-        bin += String.fromCharCode.apply(null, wasmBytes.subarray(i, Math.min(i + C, n)));
-      const wasmB64 = btoa(bin);
-
-      // Preamble: intercept fetch() inside the worker so any WASM request is served
-      // from the pre-loaded binary — no external network call needed.
-      const preamble = `(function(){
-var _f=self.fetch,_b64='${wasmB64}';
-self.fetch=function(u,o){
-  if(typeof u==='string'&&u.indexOf('.wasm')!==-1&&u.indexOf('.wasm.map')===-1){
-    var by=Uint8Array.from(atob(_b64),function(c){return c.charCodeAt(0)});
-    var st=new ReadableStream({start:function(c){c.enqueue(by);c.close();}});
-    return Promise.resolve(new Response(st,{status:200,headers:{'Content-Type':'application/wasm'}}));
+    if (this.port) return;
+    this.port = chrome.runtime.connect({ name: 'chessx' });
+    this.port.onMessage.addListener((line) => this._handleLine(line));
+    this.port.onDisconnect.addListener(() => {
+      console.error('[ChessX] Engine port disconnected — will reconnect on next analyze');
+      this.port         = null;
+      this.ready        = false;
+      this.isSearching  = false;
+      this.phase        = null;
+    });
   }
-  return _f.apply(self,arguments);
-};
-})();\n`;
 
-      const blob    = new Blob([preamble + jsCode], { type: 'text/javascript' });
-      const blobUrl = URL.createObjectURL(blob);
-      // Stockfish.js worker path reads location.hash to find the WASM URL (via locateFile).
-      // Appending the WASM URL as the hash sets that variable correctly.
-      this.worker   = new Worker(blobUrl + '#' + encodeURIComponent(wasmUrl) + ',');
-      URL.revokeObjectURL(blobUrl);
-    } catch (e) {
-      console.error('[ChessX] Worker init failed:', e);
-      return;
-    }
-    this.worker.onmessage = (e) => this._handleLine(e.data);
-    this.worker.onerror   = (e) => console.error('[ChessX] Worker error:', e.message);
-    this.worker.postMessage('uci');
-    this.worker.postMessage('setoption name Hash value 32');
-    this.worker.postMessage('isready');
-  }
+  _post(cmd) { if (this.port) this.port.postMessage(cmd); }
 
   _handleLine(line) {
     if (typeof line !== 'string') return;
     if (line === 'readyok') { this.ready = true; return; }
 
-    if (line.startsWith('bestmove') && this.skipNextBestmove) {
-      this.skipNextBestmove = false;
-      this.currentMoves = []; // discard any partial info lines from aborted search
+    if (line.startsWith('bestmove')) {
+      this.isSearching = false; // engine is now idle regardless of branch taken below
+
+      if (this.skipNextBestmove) {
+        this.skipNextBestmove = false;
+        this.currentMoves = [];
+        return; // discard — was the response to our stop() call
+      }
+
+      if (this.phase === 'main') {
+        const moves = this.currentMoves.filter(Boolean);
+        this.phase = null; this.currentMoves = [];
+        if (this.onResult && moves.length > 0) this.onResult([...moves]);
+      } else if (this.phase === 'weak') {
+        const move = this.currentMoves[0] || null;
+        this.phase = null; this.currentMoves = [];
+        this._post('setoption name UCI_LimitStrength value false');
+        this._post('setoption name MultiPV value 3');
+        if (this.onWeakResult) this.onWeakResult(move);
+      }
       return;
     }
 
     if (this.phase === 'main') {
-      // Parse: multipv N ... score cp/mate M ... pv MOVE
       const pvMatch = line.match(/multipv (\d+).*?score (cp|mate) (-?\d+).*? pv (\S+)/);
       if (pvMatch) {
         const idx      = parseInt(pvMatch[1]) - 1;
@@ -2577,69 +2559,65 @@ self.fetch=function(u,o){
         const move     = parseUciMove(pvMatch[4]);
         if (move) this.currentMoves[idx] = { ...move, score };
       }
-      if (line.startsWith('bestmove')) {
-        const moves = this.currentMoves.filter(Boolean);
-        this.phase = null; this.currentMoves = [];
-        if (this.onResult && moves.length > 0) this.onResult([...moves]);
-      }
     } else if (this.phase === 'weak') {
       const pvMatch = line.match(/\bpv (\S+)/);
       if (pvMatch && !this.currentMoves[0]) this.currentMoves[0] = parseUciMove(pvMatch[1]);
-      if (line.startsWith('bestmove')) {
-        const move = this.currentMoves[0] || null;
-        this.phase = null; this.currentMoves = [];
-        this.worker.postMessage('setoption name UCI_LimitStrength value false');
-        this.worker.postMessage('setoption name MultiPV value 3');
-        if (this.onWeakResult) this.onWeakResult(move);
-      }
+    }
+  }
+
+  _stopIfSearching() {
+    if (this.isSearching) {
+      this.skipNextBestmove = true;
+      this._post('stop');
     }
   }
 
   analyze(fen, depth = 12, engineElo = 3200, thinkMs = 0) {
-    if (!this.worker) return;
+    if (!this.port) return;
     this.phase = 'main'; this.currentMoves = [];
-    this.skipNextBestmove = true; // the upcoming stop will emit a stale bestmove — skip it
-    this.worker.postMessage('stop');
+    this._stopIfSearching(); // only skip a bestmove if the engine was actually running
     if (engineElo < 3200) {
-      this.worker.postMessage('setoption name UCI_LimitStrength value true');
-      this.worker.postMessage(`setoption name UCI_Elo value ${Math.max(100, Math.min(3190, engineElo))}`);
+      this._post('setoption name UCI_LimitStrength value true');
+      this._post(`setoption name UCI_Elo value ${Math.max(100, Math.min(3190, engineElo))}`);
     } else {
-      this.worker.postMessage('setoption name UCI_LimitStrength value false');
+      this._post('setoption name UCI_LimitStrength value false');
     }
-    this.worker.postMessage('setoption name MultiPV value 3');
-    this.worker.postMessage(`position fen ${fen}`);
-    // go depth + movetime: stops at whichever comes first.
-    // movetime floor scales with think time to avoid overrunning bullet moves.
-    const mtFloor = thinkMs > 0 && thinkMs < 600 ? 150 : thinkMs > 0 && thinkMs < 1500 ? 400 : 800;
+    this._post('setoption name MultiPV value 3');
+    this._post(`position fen ${fen}`);
+    const mtFloor    = thinkMs > 0 && thinkMs < 600 ? 150 : thinkMs > 0 && thinkMs < 1500 ? 400 : 800;
     const moveTimeMs = thinkMs > 0 ? Math.max(mtFloor, Math.min(thinkMs - 100, 8000)) : 5000;
-    this.worker.postMessage(`go depth ${depth} movetime ${moveTimeMs}`);
+    this._post(`go depth ${depth} movetime ${moveTimeMs}`);
+    this.isSearching = true;
   }
 
   analyzeWeak(fen, weakElo, depth = 10) {
-    if (!this.worker) return;
+    if (!this.port) return;
     const elo = Math.max(100, Math.min(3190, weakElo));
     this.phase = 'weak'; this.currentMoves = [];
-    this.skipNextBestmove = true;
-    this.worker.postMessage('stop');
-    this.worker.postMessage('setoption name UCI_LimitStrength value true');
-    this.worker.postMessage(`setoption name UCI_Elo value ${elo}`);
-    this.worker.postMessage('setoption name MultiPV value 1');
-    this.worker.postMessage(`position fen ${fen}`);
-    this.worker.postMessage(`go depth ${depth} movetime 3000`);
+    this._stopIfSearching();
+    this._post('setoption name UCI_LimitStrength value true');
+    this._post(`setoption name UCI_Elo value ${elo}`);
+    this._post('setoption name MultiPV value 1');
+    this._post(`position fen ${fen}`);
+    this._post(`go depth ${depth} movetime 3000`);
+    this.isSearching = true;
   }
 
-  stop()    { if (this.worker) { this.worker.postMessage('stop'); this.phase = null; } }
-  newGame() {
-    if (this.worker) {
-      this.worker.postMessage('stop');
-      this.worker.postMessage('ucinewgame');
-      this.worker.postMessage('isready');
-    }
-    this.phase = null; this.currentMoves = [];
+  stop() {
+    if (this.isSearching) { this._post('stop'); this.isSearching = false; }
+    this.phase = null;
   }
+
+  newGame() {
+    this._stopIfSearching();
+    this._post('ucinewgame');
+    this._post('isready');
+    this.phase = null; this.currentMoves = []; this.ready = false;
+  }
+
   destroy() {
-    if (this.worker) { this.worker.postMessage('quit'); this.worker.terminate(); this.worker = null; }
-    this.ready = false;
+    if (this.port) { try { this.port.disconnect(); } catch (_) {} this.port = null; }
+    this.ready = false; this.isSearching = false;
   }
 }
 
