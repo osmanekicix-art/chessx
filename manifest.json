@@ -1,0 +1,37 @@
+{
+  "manifest_version": 3,
+  "name": "ChessX Analyzer",
+  "version": "1.0.0",
+  "description": "Stockfish analysis overlay for chess.com",
+  "permissions": ["storage", "scripting"],
+  "host_permissions": ["https://www.chess.com/*"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.chess.com/game/*",
+        "https://www.chess.com/play/*",
+        "https://www.chess.com/chess/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle",
+      "all_frames": false
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/16.png",
+      "48": "icons/48.png",
+      "128": "icons/128.png"
+    }
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["stockfish.js", "stockfish.wasm"],
+      "matches": ["https://www.chess.com/*"]
+    }
+  ]
+}

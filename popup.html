@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ChessX</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      width: 260px;
+      background: #0f172a;
+      color: #e2e8f0;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      font-size: 13px;
+    }
+    .header {
+      background: #1e1b4b;
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .header h1 {
+      font-size: 16px;
+      font-weight: 700;
+      color: #818cf8;
+      letter-spacing: 0.5px;
+    }
+    .toggle-wrap {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      color: #94a3b8;
+    }
+    .toggle {
+      position: relative;
+      width: 36px;
+      height: 20px;
+    }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .slider {
+      position: absolute;
+      inset: 0;
+      background: #334155;
+      border-radius: 20px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .slider::before {
+      content: '';
+      position: absolute;
+      width: 14px; height: 14px;
+      left: 3px; top: 3px;
+      background: white;
+      border-radius: 50%;
+      transition: transform 0.2s;
+    }
+    input:checked + .slider { background: #6366f1; }
+    input:checked + .slider::before { transform: translateX(16px); }
+
+    .section {
+      padding: 12px 16px;
+      border-bottom: 1px solid #1e293b;
+    }
+    .section-title {
+      font-size: 10px;
+      font-weight: 600;
+      color: #475569;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      margin-bottom: 8px;
+    }
+
+    /* Mode buttons */
+    .mode-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+    }
+    .mode-btn {
+      padding: 7px 0;
+      border: 1px solid #334155;
+      border-radius: 6px;
+      background: #1e293b;
+      color: #94a3b8;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.15s;
+    }
+    .mode-btn:hover { border-color: #6366f1; color: #c7d2fe; }
+    .mode-btn.active {
+      background: #3730a3;
+      border-color: #6366f1;
+      color: #e0e7ff;
+      font-weight: 700;
+    }
+    .mode-desc {
+      margin-top: 6px;
+      font-size: 10px;
+      color: #64748b;
+      min-height: 14px;
+    }
+
+    /* Color selector */
+    .color-row {
+      display: flex;
+      gap: 6px;
+    }
+    .color-btn {
+      flex: 1;
+      padding: 6px 0;
+      border: 1px solid #334155;
+      border-radius: 6px;
+      background: #1e293b;
+      color: #94a3b8;
+      font-size: 11px;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.15s;
+    }
+    .color-btn:hover { border-color: #6366f1; }
+    .color-btn.active {
+      background: #1e3a5f;
+      border-color: #38bdf8;
+      color: #bae6fd;
+      font-weight: 700;
+    }
+
+    /* Depth slider */
+    .slider-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    input[type="range"] {
+      flex: 1;
+      accent-color: #6366f1;
+      cursor: pointer;
+    }
+    .slider-val {
+      font-size: 13px;
+      font-weight: 600;
+      color: #818cf8;
+      min-width: 20px;
+      text-align: right;
+    }
+
+    .footer {
+      padding: 10px 16px;
+      text-align: center;
+      font-size: 10px;
+      color: #334155;
+    }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <h1>ChessX</h1>
+  <div class="toggle-wrap">
+    <span>Active</span>
+    <label class="toggle">
+      <input type="checkbox" id="enabled-toggle" checked>
+      <span class="slider"></span>
+    </label>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title">Mode</div>
+  <div class="mode-grid">
+    <button class="mode-btn active" data-mode="legit">Legit</button>
+    <button class="mode-btn"       data-mode="semi">Semi</button>
+    <button class="mode-btn"       data-mode="rage">Rage</button>
+    <button class="mode-btn"       data-mode="manual">Manual</button>
+  </div>
+  <div class="mode-desc" id="mode-desc">2–3 intentional errors, weighted moves</div>
+</div>
+
+<div class="section">
+  <div class="section-title">Color</div>
+  <div class="color-row">
+    <button class="color-btn active" data-color="auto">Auto</button>
+    <button class="color-btn"        data-color="white">White</button>
+    <button class="color-btn"        data-color="black">Black</button>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title">Analysis depth</div>
+  <div class="slider-row">
+    <input type="range" id="depth-range" min="5" max="22" value="15">
+    <span class="slider-val" id="depth-val">15</span>
+  </div>
+</div>
+
+<div class="footer">v1.0.0 · Stockfish engine</div>
+
+<script src="popup.js"></script>
+</body>
+</html>
