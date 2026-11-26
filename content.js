@@ -2182,6 +2182,11 @@ class BoardReader {
   buildFen() {
     const position = this.buildFenPosition();
     if (!position) return null;
+    // Animation guard: a valid position must have exactly one king per side.
+    // If the board reader catches a piece mid-animation, the king count will be wrong.
+    const wK = (position.match(/K/g) || []).length;
+    const bK = (position.match(/k/g) || []).length;
+    if (wK !== 1 || bK !== 1) return null;
     return `${position} ${this.detectTurn()} KQkq - 0 1`;
   }
 
@@ -2491,12 +2496,13 @@ class InfoPanel {
 // ─── Stockfish engine wrapper ─────────────────────────────────────────────────
 class EngineWrapper {
   constructor() {
-    this.worker       = null;
-    this.ready        = false;
-    this.phase        = null;
-    this.currentMoves = [];
-    this.onResult     = null;
-    this.onWeakResult = null;
+    this.worker           = null;
+    this.ready            = false;
+    this.phase            = null;
+    this.currentMoves     = [];
+    this.onResult         = null;
+    this.onWeakResult     = null;
+    this.skipNextBestmove = false; // skip the bestmove triggered by stop() inside analyze()
   }
 
   init() {
@@ -2513,6 +2519,12 @@ class EngineWrapper {
   _handleLine(line) {
     if (typeof line !== 'string') return;
     if (line === 'readyok') { this.ready = true; return; }
+
+    if (line.startsWith('bestmove') && this.skipNextBestmove) {
+      this.skipNextBestmove = false;
+      this.currentMoves = []; // discard any partial info lines from aborted search
+      return;
+    }
 
     if (this.phase === 'main') {
       // Parse: multipv N ... score cp/mate M ... pv MOVE
@@ -2545,6 +2557,7 @@ class EngineWrapper {
   analyze(fen, depth = 12, engineElo = 3200, thinkMs = 0) {
     if (!this.worker) return;
     this.phase = 'main'; this.currentMoves = [];
+    this.skipNextBestmove = true; // the upcoming stop will emit a stale bestmove — skip it
     this.worker.postMessage('stop');
     if (engineElo < 3200) {
       this.worker.postMessage('setoption name UCI_LimitStrength value true');
@@ -2565,6 +2578,7 @@ class EngineWrapper {
     if (!this.worker) return;
     const elo = Math.max(100, Math.min(3190, weakElo));
     this.phase = 'weak'; this.currentMoves = [];
+    this.skipNextBestmove = true;
     this.worker.postMessage('stop');
     this.worker.postMessage('setoption name UCI_LimitStrength value true');
     this.worker.postMessage(`setoption name UCI_Elo value ${elo}`);
