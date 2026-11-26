@@ -2643,6 +2643,7 @@ class ChessX {
     this.isBlunder   = false;
     this.isBook      = false;
     this.thinkMs     = 0;
+    this.analysisSeq = 0;
     this.openingPhase     = true;
     this.currentOpening   = '';
 
@@ -2792,6 +2793,13 @@ class ChessX {
     }
 
     // ── Engine analysis ─────────────────────────────────────────────────────
+    // Clear stale arrows immediately — new position, new analysis
+    this.bestMoves = [];
+    this.eloMove   = null;
+    this.weakMove  = null;
+    this.isBook    = false;
+    this.overlay.clear();
+
     this.panel.update({
       status: 'analyzing…',
       html: `
@@ -2800,6 +2808,13 @@ class ChessX {
         Think: <b>${(this.thinkMs/1000).toFixed(1)}s</b>
       `
     });
+
+    // Guard callbacks with a sequence number so stale results from a
+    // previous position never overwrite the current analysis.
+    const mySeq = ++this.analysisSeq;
+    this.engine.onResult     = (moves) => { if (this.analysisSeq === mySeq) this._onEngineResult(moves); };
+    this.engine.onWeakResult = (move)  => { if (this.analysisSeq === mySeq) this._onWeakResult(move); };
+
     this.engine.analyze(fen, this.settings.depth, this.settings.engineElo || 3200, this.thinkMs);
     this._schedulePlayNow();
   }
