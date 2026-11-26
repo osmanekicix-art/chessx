@@ -2508,16 +2508,43 @@ class EngineWrapper {
   async init() {
     if (this.worker) return;
     try {
-      // Fetch stockfish.js and create a blob worker to bypass chess.com's CSP (worker-src 'self').
       const jsUrl   = chrome.runtime.getURL('stockfish.js');
       const wasmUrl = chrome.runtime.getURL('stockfish.wasm');
-      const resp    = await fetch(jsUrl);
-      let code      = await resp.text();
-      // Patch any relative reference to stockfish.wasm with the absolute extension URL.
-      code = code.replace(/['"]stockfish\.wasm['"]/g, `'${wasmUrl}'`);
-      const blob    = new Blob([code], { type: 'text/javascript' });
+
+      // Fetch both assets from the content-script context, which can always reach
+      // web_accessible_resources regardless of the page CSP.
+      const [jsCode, wasmBuf] = await Promise.all([
+        fetch(jsUrl).then(r => r.text()),
+        fetch(wasmUrl).then(r => r.arrayBuffer()),
+      ]);
+
+      // Encode WASM as base64 so we can embed it inline in the blob worker source.
+      // This eliminates any outbound fetch inside the worker (bypasses CSP connect-src).
+      const wasmBytes = new Uint8Array(wasmBuf);
+      let bin = '';
+      for (let i = 0, n = wasmBytes.length, C = 8192; i < n; i += C)
+        bin += String.fromCharCode.apply(null, wasmBytes.subarray(i, Math.min(i + C, n)));
+      const wasmB64 = btoa(bin);
+
+      // Preamble: intercept fetch() inside the worker so any WASM request is served
+      // from the pre-loaded binary — no external network call needed.
+      const preamble = `(function(){
+var _f=self.fetch,_b64='${wasmB64}';
+self.fetch=function(u,o){
+  if(typeof u==='string'&&u.indexOf('.wasm')!==-1&&u.indexOf('.wasm.map')===-1){
+    var by=Uint8Array.from(atob(_b64),function(c){return c.charCodeAt(0)});
+    var st=new ReadableStream({start:function(c){c.enqueue(by);c.close();}});
+    return Promise.resolve(new Response(st,{status:200,headers:{'Content-Type':'application/wasm'}}));
+  }
+  return _f.apply(self,arguments);
+};
+})();\n`;
+
+      const blob    = new Blob([preamble + jsCode], { type: 'text/javascript' });
       const blobUrl = URL.createObjectURL(blob);
-      this.worker   = new Worker(blobUrl);
+      // Stockfish.js worker path reads location.hash to find the WASM URL (via locateFile).
+      // Appending the WASM URL as the hash sets that variable correctly.
+      this.worker   = new Worker(blobUrl + '#' + encodeURIComponent(wasmUrl) + ',');
       URL.revokeObjectURL(blobUrl);
     } catch (e) {
       console.error('[ChessX] Worker init failed:', e);
