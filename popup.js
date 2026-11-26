@@ -74,6 +74,10 @@ document.querySelectorAll('.color-btn').forEach(btn => {
     settings.colorOverride = btn.dataset.color;
     applyUI();
     saveAndBroadcast();
+    // Visual feedback — flash the selected button
+    btn.style.transition = 'background 0.1s';
+    btn.style.background = '#1d4ed8';
+    setTimeout(() => { btn.style.background = ''; }, 300);
   });
 });
 

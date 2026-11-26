@@ -722,7 +722,23 @@ class ChessX {
     this.moveCount++;
 
     // Detect my color
-    this.myColor = this.boardReader.detectMyColor(this.settings.colorOverride);
+    const detected = this.boardReader.detectMyColor(this.settings.colorOverride);
+
+    // If auto-detection failed and no override set, show prompt and stop
+    if (!detected && this.settings.colorOverride === 'auto') {
+      this.overlay.clear();
+      this.panel.update({
+        status: '⚠ renk?',
+        html: `
+          <b style="color:#fbbf24">Renk tespit edilemedi.</b><br>
+          Popup'tan manuel seç:<br>
+          <b>Beyaz</b> veya <b>Siyah</b>
+        `
+      });
+      return;
+    }
+
+    this.myColor = detected || 'white';
 
     // Check if it's my turn
     const turn = fen.split(' ')[1]; // 'w' or 'b'
@@ -823,10 +839,23 @@ class ChessX {
   }
 
   _onSettingsChange() {
-    // Reset blunder tracker on mode change
-    if (this.settings.mode === 'legit') this.blunders.reset();
+    // Full clean restart — flush all stale analysis state
+    this.engine.stop();
     this.engine.newGame();
-    this.lastFen = null; // force re-analysis
+
+    this.lastFen    = null;
+    this.pendingFen = null;
+    this.bestMoves  = [];
+    this.eloMove    = null;
+    this.weakMove   = null;
+    this.isBlunder  = false;
+    this.thinkMs    = 0;
+    this.moveCount  = 0;
+
+    if (this.settings.mode === 'legit') this.blunders.reset();
+
+    this.overlay.clear();
+    this.panel.update({ status: 'restarted', html: 'Engine restarted — waiting for board…' });
   }
 
   stop() {
