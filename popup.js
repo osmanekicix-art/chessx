@@ -113,3 +113,21 @@ document.getElementById('blunder-range').addEventListener('input', (e) => {
     settings.blunderCount === 0 ? '0 (kapalı)' : settings.blunderCount;
 });
 document.getElementById('blunder-range').addEventListener('change', () => { saveAndBroadcast(); });
+
+// ── Tab switcher ────────────────────────────────────────────────────────────
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+  });
+});
+
+// ── Analiz sekmesi ──────────────────────────────────────────────────────────
+document.getElementById('open-analyzer-btn').addEventListener('click', () => {
+  const pgn = document.getElementById('analiz-pgn').value.trim();
+  if (pgn) chrome.storage.local.set({ analyzerPgn: pgn });
+  chrome.tabs.create({ url: chrome.runtime.getURL('analyzer.html') });
+  window.close();
+});

@@ -77,6 +77,35 @@
 
     .footer { padding: 10px 16px; text-align: center; font-size: 10px; color: #334155; }
     .hint { font-size: 10px; color: #475569; margin-top: 5px; }
+
+    /* Tab bar */
+    .tab-bar { display: flex; border-bottom: 1px solid #1e293b; }
+    .tab-btn {
+      flex: 1; padding: 9px 0; background: none; border: none; border-bottom: 2px solid transparent;
+      color: #64748b; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.15s;
+      margin-bottom: -1px;
+    }
+    .tab-btn:hover { color: #c7d2fe; }
+    .tab-btn.active { color: #818cf8; border-bottom-color: #6366f1; }
+    .tab-pane { display: none; }
+    .tab-pane.active { display: block; }
+
+    /* Analiz sekmesi */
+    .analiz-wrap { padding: 14px 16px; }
+    .pgn-area {
+      width: 100%; height: 110px; background: #1e293b; border: 1px solid #334155;
+      border-radius: 6px; color: #e2e8f0; font-family: 'Courier New', monospace;
+      font-size: 11px; padding: 8px 10px; resize: none; outline: none; transition: border-color 0.2s;
+    }
+    .pgn-area:focus { border-color: #6366f1; }
+    .pgn-area::placeholder { color: #475569; }
+    .open-btn {
+      margin-top: 10px; width: 100%; padding: 9px 0; background: #3730a3;
+      border: none; border-radius: 6px; color: #e0e7ff; font-size: 13px;
+      font-weight: 600; cursor: pointer; transition: background 0.15s;
+    }
+    .open-btn:hover { background: #4f46e5; }
+    .analiz-hint { font-size: 10px; color: #475569; margin-top: 7px; text-align: center; }
   </style>
 </head>
 <body>
@@ -92,6 +121,12 @@
   </div>
 </div>
 
+<div class="tab-bar">
+  <button class="tab-btn active" data-tab="ayarlar">Ayarlar</button>
+  <button class="tab-btn"       data-tab="analiz">Analiz</button>
+</div>
+
+<div class="tab-pane active" id="tab-ayarlar">
 <div class="section">
   <div class="section-title">Mod</div>
   <div class="mode-grid">
@@ -150,6 +185,16 @@
 </div>
 
 <div class="footer">v1.0.0 · Stockfish engine · \ gizle/göster</div>
+</div><!-- /tab-ayarlar -->
+
+<div class="tab-pane" id="tab-analiz">
+  <div class="analiz-wrap">
+    <div class="section-title">PGN Yapıştır</div>
+    <textarea class="pgn-area" id="analiz-pgn" placeholder='[Event "Casual"]&#10;[White "Sen"]&#10;[Black "Rakip"]&#10;[Result "1-0"]&#10;&#10;1. e4 e5 2. Nf3 ...'></textarea>
+    <button class="open-btn" id="open-analyzer-btn">Analizi Aç →</button>
+    <div class="analiz-hint">Yeni sekmede ayrıntılı rapor açılır</div>
+  </div>
+</div><!-- /tab-analiz -->
 
 <script src="popup.js"></script>
 </body>
